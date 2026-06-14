@@ -1,165 +1,117 @@
 # Watchtower
 
-A GeoDjango + PostGIS web map of wildfire lookout cameras that answers:
-**"which active fires can each tower currently see?"** using live NASA FIRMS
-satellite data.
+A GeoDjango + PostGIS web map of wildfire lookout towers that answers one
+question: **which active fires can each tower currently see?** Fire data is live
+from NASA FIRMS (VIIRS); "can see" is modelled either as a flat coverage radius
+or, with terrain factored in, a real line-of-sight viewshed.
 
-This is a learning/portfolio project for geospatial data engineering. It is
-built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
+A learning/portfolio project for geospatial data engineering, built in phases
+(see [`watchtower-plan.md`](watchtower-plan.md)). **Status:** Phase 3 — terrain
+viewsheds.
 
-> **Status:** Phase 3 (viewshed) — terrain line-of-sight coverage.
+## How it works
 
-## Tech stack
+The system reduces to one spatial join — for each `WatchtowerSite`, which
+`FireDetection`s intersect its coverage geometry — wrapped in an ETL that keeps
+both sides current.
 
-- Python 3.12, Django 5.x with GeoDjango (`django.contrib.gis`)
-- PostgreSQL 16 + PostGIS 3.4
-- Docker + docker-compose (so you never install GDAL/GEOS/PROJ on the host)
-- [uv](https://docs.astral.sh/uv/) for Python dependency management
-- NASA FIRMS (VIIRS) as the live fire-detection data source
-- Copernicus GLO-30 DEM (AWS Open Data) + GDAL `gdal_viewshed` for terrain viewsheds
-- `requests` + `pandas` for the ETL; `rasterio` + `shapely` for the viewshed
-- React + TypeScript + Vite (via [django-vite](https://github.com/MrBin99/django-vite))
-  for the frontend, with [mapcn](https://www.mapcn.dev) (MapLibre GL) for the map
-  and Tailwind CSS
+```
+FIRMS VIIRS CSV ──ingest_fires──▶ FireDetection (PointField, 4326)
+                                          │
+Copernicus GLO-30 DEM ─compute_viewsheds─▶ WatchtowerSite.viewshed (MultiPolygon)
+                                          │
+                                          ▼
+                              fires_in_range()  ──▶  /api/*.geojson  ──▶  React/MapLibre
+```
 
-## Prerequisites
+- **`towers/models.py`** — `WatchtowerSite` and `FireDetection`. Coverage is a
+  computed viewshed when present, otherwise a reprojected radius buffer;
+  `fires_in_range()` queries with `intersects` or `distance_lte` accordingly.
+  Detections dedup on a stable `external_uid`, so ingest is idempotent.
+- **`towers/viewshed.py`** — reads Copernicus GLO-30 DEM COGs from AWS Open Data
+  over HTTP (`/vsicurl/`, no download or credentials), warps to UTM, runs
+  `gdal_viewshed`, and polygonizes the visible cells back to 4326.
+- **`towers/views.py`** — hand-rolled GeoJSON endpoints; `/` serves a React app.
+- **`assets/`** — React + TS + Vite frontend (MapLibre via
+  [mapcn](https://www.mapcn.dev)), wired into Django by django-vite.
 
-- **Docker Desktop** installed and running.
-- A free **NASA FIRMS `MAP_KEY`** (needed for the Phase 2 ingest, not for the
-  map itself). Request one at
-  <https://firms.modaps.eosdis.nasa.gov/api/map_key/> and put it in `.env` as
-  `FIRMS_MAP_KEY=...`.
+### Spatial conventions
+
+Geometry is stored exclusively in **SRID 4326 (WGS84)** — what the data sources
+and the web map speak. Anything needing metres (buffers, viewsheds) reprojects
+on the fly to the tower's local **UTM zone**; buffering in degrees or Web
+Mercator is wrong (~28% scale error at California's latitude). Distance lookups
+pass `"spheroid"` for true ground metres.
+
+## Stack
+
+| Layer | Choice |
+|---|---|
+| Backend | Python 3.12, Django 5.x + GeoDjango (`django.contrib.gis`) |
+| Database | PostgreSQL 16 + PostGIS 3.4 |
+| Geo compute | GDAL CLI (`gdal_viewshed`/`gdalwarp`), `rasterio`, `shapely` |
+| ETL | `requests` + `pandas` |
+| Frontend | React + TypeScript + Vite, MapLibre GL (mapcn), Tailwind |
+| Tooling | Docker Compose, [uv](https://docs.astral.sh/uv/) (Python), Node 24 |
+
+GeoDjango needs GDAL/GEOS/PROJ and `gdal_viewshed` shells out to the GDAL CLI,
+so **Django runs in Docker**. Node/Vite runs on the host — it's intentionally
+out of the image.
 
 ## Quick start
 
 ```bash
-# 1. (Optional) create your local env file. Defaults work out of the box;
-#    you'll need this in Phase 2 to set FIRMS_MAP_KEY.
-cp .env.example .env
+cp .env.example .env                # optional; defaults work. Set FIRMS_MAP_KEY for ingest.
+docker compose up --build           # db + web
 
-# 2. Build and start the database + web services.
-docker compose up --build
-
-# 3. In another terminal, run migrations (enables PostGIS + applies schema).
-docker compose exec web python manage.py migrate
-
-# 4. Seed ~5 real California fire lookouts.
-docker compose exec web python manage.py seed_towers
-
-# 5. Ingest live fire detections from NASA FIRMS (needs FIRMS_MAP_KEY in .env).
-docker compose exec web python manage.py ingest_fires            # last 1 day
-docker compose exec web python manage.py ingest_fires --day-range 3
-
-# 6. (Optional, Phase 3) Compute terrain viewsheds — replaces the coverage
-#    circles with real line-of-sight. Downloads DEM windows; ~1 min per tower.
-docker compose exec web python manage.py compute_viewsheds
+docker compose exec web python manage.py migrate        # enables PostGIS + schema
+docker compose exec web python manage.py seed_towers    # 5 real CA lookouts
+docker compose exec web python manage.py ingest_fires --day-range 3   # needs FIRMS_MAP_KEY
+docker compose exec web python manage.py compute_viewsheds            # ~1 min/tower
 ```
 
-The web service runs the Django dev server at <http://localhost:8000>. To work
-on the map you also need the Vite dev server running (see
-[Frontend](#frontend-react--vite) below):
-
-- `/` — React map (MapLibre via mapcn): tower markers, coverage polygons, and
-  live fire points (red). Click a tower or fire for details.
-- `/api/towers.geojson` — towers (with coverage polygons + in-range counts).
-- `/api/fires.geojson` — all fire detections.
-- `/api/towers/<id>/fires.geojson` — fires within one tower's coverage.
-- `/admin/` — Django admin (with map widgets).
-
-Both `seed_towers` and `ingest_fires` are idempotent — re-running refreshes data
-rather than duplicating it (the ingest dedups on a stable `external_uid`).
-
-### Notes on the FIRMS ingest
-
-- `--day-range` accepts 1–10, but a large bounding box over many days can exceed
-  FIRMS' per-request limits (HTTP 400); use a smaller range if so.
-- On a calm day FIRMS may return **zero** detections in the area — that's normal
-  and handled gracefully (no crash, empty map layer).
-- Coverage uses a naive `coverage_radius_km`, reprojected to the local UTM zone
-  for accurate metre buffering. Whether any live fire currently falls within a
-  given lookout's radius is down to real-world fire activity.
-
-### Phase 3 — terrain viewsheds
-
-`compute_viewsheds` replaces each lookout's coverage *circle* with a real
-line-of-sight **viewshed**: the ground the observer can actually see once ridges
-block the view. Pipeline (`towers/viewshed.py`):
-
-1. Read the relevant 1°×1° Copernicus GLO-30 DEM tiles straight from AWS over
-   HTTP (`/vsicurl/`, no download, no credentials).
-2. Mosaic + reproject the window to the tower's UTM zone (metres) with `gdalwarp`.
-3. Run `gdal_viewshed` from the observer (DEM ground + mast height).
-4. Polygonize the visible cells (`rasterio` + `shapely`) and reproject to 4326.
-
-When a tower has a stored viewshed, both the map coverage (drawn green vs. the
-blue circle) and `fires_in_range()` use it instead of the radius — so the
-"fires I can see" count reflects terrain. In the seeded data this drops Boucher
-Hill from 6 in-radius fires to **1 actually visible**.
-
-### Verify the spatial stack
+Django serves at <http://localhost:8000>. For the map you also need Vite on the
+host (django-vite loads from the dev server in `DEBUG`):
 
 ```bash
-# GeoDjango's geometry bindings load:
-docker compose exec web python manage.py shell -c \
-  "from django.contrib.gis.geos import Point; print(Point(-121.5, 38.5, srid=4326))"
+nvm use && npm install && npm run dev   # HMR on :5173, app still at :8000
 ```
 
-### Running tests
+A free FIRMS `MAP_KEY` (for ingest only) comes from
+<https://firms.modaps.eosdis.nasa.gov/api/map_key/> → `.env` as `FIRMS_MAP_KEY`.
+
+### Endpoints
+
+| Path | Returns |
+|---|---|
+| `/` | React map: towers, coverage polygons, live fire points |
+| `/api/towers.geojson` | Towers with coverage polygon + in-range fire count |
+| `/api/fires.geojson` | All fire detections |
+| `/api/towers/<id>/fires.geojson` | Fires within one tower's coverage |
+| `/admin/` | Django admin with map widgets |
+
+## Development
 
 ```bash
-docker compose exec web pytest
+docker compose exec web pytest                          # pytest-django; needs the PostGIS DB
+docker compose exec web pytest path::test_name          # single test
+docker compose exec web ruff check .                    # lint
+npm run build                                            # hashed bundle + manifest for DEBUG=0
 ```
 
-## Frontend (React + Vite)
+Add Python deps with `uv add [--dev] <pkg>` then `docker compose build web`. Add
+mapcn/shadcn components with `npx shadcn@latest add <name>` (`@/` → `assets/`).
 
-The map is a small React + TypeScript app under [`assets/`](assets/), built with
-Vite and served into Django by django-vite. The map components come from
-[mapcn](https://www.mapcn.dev) (shadcn-style, MapLibre GL) and live in
-`assets/components/ui/map.tsx`; `assets/components/MapView.tsx` is the app code.
+## Operational notes
 
-Node runs on the **host** (it's intentionally not in the Docker image). With
-Docker already up for Django + Postgres:
-
-```bash
-nvm use            # Node 24 (see .nvmrc)
-npm install        # first time only
-npm run dev        # Vite dev server on http://localhost:5173 (HMR)
-```
-
-Then open <http://localhost:8000> — in `DEBUG` mode django-vite loads the app
-from the Vite dev server, so edits hot-reload. The map uses free CARTO basemap
-tiles (no API key).
-
-For a production-style build, generate the hashed bundle + manifest into
-`static/` (django-vite then serves those when `DEBUG=0`):
-
-```bash
-npm run build
-```
-
-To add more shadcn/mapcn components: `npx shadcn@latest add <name>` (config in
-`components.json`; everything resolves under the `@/ → assets/` alias).
-
-## Configuration
-
-All configuration comes from environment variables (see `.env.example`).
-`.env` is gitignored — never commit secrets. `docker compose up` works without
-a `.env` thanks to the defaults baked into `docker-compose.yml`.
-
-| Variable | Purpose | Default |
-|---|---|---|
-| `POSTGRES_DB` / `POSTGRES_USER` / `POSTGRES_PASSWORD` | Database credentials | `watchtower` |
-| `DJANGO_SECRET_KEY` | Django secret key | dev placeholder |
-| `DJANGO_DEBUG` | `1` to enable debug mode | `1` |
-| `FIRMS_MAP_KEY` | NASA FIRMS API key (Phase 2) | empty |
-
-## Working with dependencies (uv)
-
-Dependencies live in `pyproject.toml` and are pinned in `uv.lock`. The Docker
-image installs them with `uv sync --frozen`. To change dependencies:
-
-```bash
-uv add <package>          # add a runtime dependency
-uv add --dev <package>    # add a dev/test dependency
-docker compose build web  # rebuild the image to pick up the change
-```
+- **Never log the FIRMS request URL** — it embeds the secret `MAP_KEY`; ingest
+  redacts it from any surfaced exception.
+- `--day-range` is 1–10. A large bbox over many days can exceed FIRMS limits
+  (HTTP 400) — shrink the range. Zero detections on a calm day is normal and
+  handled.
+- All management commands are idempotent (`update_or_create`); re-running
+  refreshes rather than duplicates.
+- Viewsheds reflect terrain: in the seed data, terrain drops Boucher Hill from
+  6 in-radius fires to **1 actually visible**.
+- Config is entirely env-driven (see `.env.example`); `.env` is gitignored and
+  Compose bakes working defaults, so `docker compose up` runs without one.

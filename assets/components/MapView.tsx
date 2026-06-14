@@ -27,7 +27,7 @@ const COVERAGE_LINE = "coverage-line";
 const FIRE_SOURCE = "fires";
 const FIRE_CIRCLE = "fire-circle";
 
-// Coverage colours match the old Leaflet map: viewshed green, circle blue.
+// Coverage colours: viewshed green, circle blue.
 const VIEWSHED = "#238b45";
 const CIRCLE = "#2b8cbe";
 

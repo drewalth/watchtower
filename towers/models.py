@@ -5,15 +5,12 @@ from django.contrib.gis.measure import D
 class WatchtowerSite(models.Model):
     """A fire-lookout site: a camera/observer on a high vantage point.
 
-    Geometry is stored in SRID 4326 (WGS84 lat/lon) because that's what our data
-    sources and Leaflet use. Distance/area math that needs metres reprojects to a
-    metric CRS on the fly (see ``coverage_area``) — we never store projected
-    coordinates.
+    Geometry is stored in SRID 4326 (WGS84); math needing metres reprojects to a
+    metric CRS on the fly (see ``coverage_area``). We never store projected coords.
     """
 
     name = models.CharField(max_length=200)
-    # spatial_index=True (the PointField default) creates a GiST index on the
-    # geometry, which is what makes spatial lookups (distance/within) fast.
+    # PointField defaults to spatial_index=True → a GiST index for fast lookups.
     location = models.PointField(srid=4326, spatial_index=True)
     elevation_m = models.FloatField(help_text="Metres above sea level.")
     coverage_radius_km = models.FloatField(
@@ -31,22 +28,17 @@ class WatchtowerSite(models.Model):
         return self.name
 
     def _metric_srid(self):
-        """The UTM zone SRID for this tower's longitude (northern hemisphere).
+        """WGS84/UTM SRID for this tower's longitude (northern hemisphere).
 
-        UTM gives accurate distances in metres for a local area — far better
-        than buffering in Web Mercator (EPSG:3857), whose scale error grows with
-        latitude (~28% at California's ~38°N). We pick the zone per tower.
+        Per-tower UTM gives accurate metre distances locally, unlike Web Mercator
+        whose scale error grows with latitude.
         """
         zone = int((self.location.x + 180) // 6) + 1
         return 32600 + zone  # 326NN = WGS84 / UTM zone NN North
 
     def coverage_area(self):
-        """Coverage polygon in EPSG:4326.
-
-        Returns the computed terrain viewshed when available; otherwise the
-        naive radius circle. CRS lesson for the circle: you can't buffer in
-        degrees and get metres — reproject the point to a metric CRS (the local
-        UTM zone), buffer by the radius in metres, then reproject back to 4326.
+        """Coverage polygon in EPSG:4326: the terrain viewshed if computed, else
+        the radius circle (buffered in UTM metres, then reprojected back to 4326).
         """
         if self.viewshed is not None:
             return self.viewshed
@@ -61,13 +53,9 @@ class WatchtowerSite(models.Model):
         return "viewshed" if self.viewshed is not None else "circle"
 
     def fires_in_range(self, since=None):
-        """FireDetections this tower can see.
-
-        With a computed viewshed, "can see" means inside the terrain
-        line-of-sight polygon. Without one, it falls back to the naive radius:
-        the 'spheroid' option makes ``distance_lte`` measure true ground metres
-        on the WGS84 spheroid rather than degrees on the 4326 geometry column.
-        ``since`` optionally restricts to recent detections.
+        """FireDetections this tower can see: inside the viewshed polygon if one
+        is computed, else within the radius. ``distance_lte`` uses 'spheroid' to
+        measure true ground metres rather than degrees. ``since`` filters by recency.
         """
         if self.viewshed is not None:
             fires = FireDetection.objects.filter(location__intersects=self.viewshed)

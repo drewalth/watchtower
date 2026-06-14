@@ -7,16 +7,15 @@ from .models import FireDetection, WatchtowerSite
 
 
 def map_view(request):
-    """Render the Leaflet dashboard. The map fetches its data from the API."""
+    """Render the map page; the React app fetches its data from the API."""
     return render(request, "towers/map.html")
 
 
 def towers_geojson(request):
     """All towers as a GeoJSON FeatureCollection.
 
-    Each feature carries its coverage polygon (the reprojected buffer) and a
-    live count of fires currently in range, so the map can draw coverage and
-    show counts in popups. Coordinates are [lon, lat] per the GeoJSON spec.
+    Each feature carries its coverage polygon and a live in-range fire count.
+    Coordinates are [lon, lat] per the GeoJSON spec.
     """
     features = [
         {

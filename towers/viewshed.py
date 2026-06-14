@@ -1,19 +1,10 @@
 """Terrain viewshed computation from the open Copernicus GLO-30 DEM.
 
-A viewshed is the set of ground that an observer can actually *see*, given the
-terrain between them and each target — a far better model of "which fires can
-this lookout see" than a flat circle, because ridges block the line of sight.
-
-Pipeline (per tower):
-  1. Work out which 1°×1° Copernicus DEM COG tiles cover the area of interest
-     (tower ± coverage radius). These are read straight from AWS Open Data over
-     HTTP via GDAL's ``/vsicurl/`` — no download of full tiles, no credentials.
-  2. Mosaic + reproject that window to the tower's local UTM zone (metres) with
-     ``gdalwarp`` (line-of-sight math needs metres, not degrees).
-  3. Run ``gdal_viewshed`` from the observer (DEM ground elevation + a mast
-     height) to get a visible / not-visible raster, capped at the radius.
-  4. Polygonize the visible cells, union them, and reproject back to EPSG:4326
-     for storage and serving.
+A viewshed is the ground an observer can actually *see* given the terrain in
+between — a better model of "which fires can this lookout see" than a flat
+circle, because ridges block the line of sight. ``compute_viewshed`` runs the
+per-tower pipeline (DEM tiles → UTM mosaic → gdal_viewshed → polygonized 4326);
+the numbered steps below mark each stage.
 
 Requires the GDAL CLI (gdalbuildvrt/gdalwarp/gdal_viewshed) plus rasterio and
 shapely — all present in the Docker image.
