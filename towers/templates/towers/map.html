@@ -35,25 +35,38 @@
     fetch("{% url 'towers-geojson' %}")
       .then((response) => response.json())
       .then((geojson) => {
-        const coverage = L.geoJSON(null, {
-          style: { color: "#2b8cbe", weight: 1, fillOpacity: 0.08 },
-        }).addTo(map);
+        // Naive radius circles are blue; computed terrain viewsheds are green.
+        const circleStyle = { color: "#2b8cbe", weight: 1, fillOpacity: 0.08 };
+        const viewshedStyle = { color: "#238b45", weight: 1, fillOpacity: 0.18 };
+        const coverage = L.geoJSON(null).addTo(map);
 
         const markers = L.geoJSON(geojson, {
           onEachFeature: (feature, layer) => {
             const p = feature.properties;
-            // Draw the reprojected coverage polygon for this tower.
+            // Draw this tower's coverage polygon, styled by kind.
             if (p.coverage) {
-              coverage.addData(p.coverage);
+              coverage.addData({
+                type: "Feature",
+                geometry: p.coverage,
+                properties: { kind: p.coverage_kind },
+              });
             }
+            const kind =
+              p.coverage_kind === "viewshed"
+                ? "terrain viewshed"
+                : `${p.coverage_radius_km} km radius`;
             layer.bindPopup(
               `<strong>${p.name}</strong><br>` +
               `Elevation: ${p.elevation_m} m<br>` +
-              `Coverage radius: ${p.coverage_radius_km} km<br>` +
+              `Coverage: ${kind}<br>` +
               `<strong>Fires in range: ${p.fire_count}</strong>`
             );
           },
         }).addTo(map);
+
+        coverage.setStyle((feature) =>
+          feature.properties.kind === "viewshed" ? viewshedStyle : circleStyle
+        );
 
         if (geojson.features.length) {
           map.fitBounds(markers.getBounds().pad(0.25));

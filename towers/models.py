@@ -20,6 +20,11 @@ class WatchtowerSite(models.Model):
         default=20.0,
         help_text="Naive line-of-sight radius; used for the coverage model.",
     )
+    # Terrain line-of-sight polygon (Phase 3). Populated by compute_viewsheds;
+    # when present it supersedes the naive radius circle for coverage + queries.
+    viewshed = models.MultiPolygonField(
+        srid=4326, null=True, blank=True, spatial_index=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self):
@@ -36,33 +41,44 @@ class WatchtowerSite(models.Model):
         return 32600 + zone  # 326NN = WGS84 / UTM zone NN North
 
     def coverage_area(self):
-        """Coverage polygon (a ~circle) in EPSG:4326.
+        """Coverage polygon in EPSG:4326.
 
-        CRS lesson: you can't buffer in degrees and get metres. Reproject the
-        point to a metric CRS (the local UTM zone), buffer by the radius in
-        metres, then reproject back to 4326 for storage/serving.
+        Returns the computed terrain viewshed when available; otherwise the
+        naive radius circle. CRS lesson for the circle: you can't buffer in
+        degrees and get metres — reproject the point to a metric CRS (the local
+        UTM zone), buffer by the radius in metres, then reproject back to 4326.
         """
+        if self.viewshed is not None:
+            return self.viewshed
         point = self.location.clone()
         point.transform(self._metric_srid())  # to metres
         circle = point.buffer(self.coverage_radius_km * 1000)
         circle.transform(4326)  # back to lat/lon for the web map
         return circle
 
-    def fires_in_range(self, since=None):
-        """FireDetections within this tower's coverage radius.
+    @property
+    def coverage_kind(self):
+        return "viewshed" if self.viewshed is not None else "circle"
 
-        The 'spheroid' option makes ``distance_lte`` measure true ground metres
-        on the WGS84 spheroid, rather than degrees on the 4326 geometry column —
-        that's the correct way to do a metric distance lookup against a geodetic
-        geometry. ``since`` optionally restricts to recent detections.
+    def fires_in_range(self, since=None):
+        """FireDetections this tower can see.
+
+        With a computed viewshed, "can see" means inside the terrain
+        line-of-sight polygon. Without one, it falls back to the naive radius:
+        the 'spheroid' option makes ``distance_lte`` measure true ground metres
+        on the WGS84 spheroid rather than degrees on the 4326 geometry column.
+        ``since`` optionally restricts to recent detections.
         """
-        fires = FireDetection.objects.filter(
-            location__distance_lte=(
-                self.location,
-                D(km=self.coverage_radius_km),
-                "spheroid",
+        if self.viewshed is not None:
+            fires = FireDetection.objects.filter(location__intersects=self.viewshed)
+        else:
+            fires = FireDetection.objects.filter(
+                location__distance_lte=(
+                    self.location,
+                    D(km=self.coverage_radius_km),
+                    "spheroid",
+                )
             )
-        )
         if since is not None:
             fires = fires.filter(acquired_at__gte=since)
         return fires

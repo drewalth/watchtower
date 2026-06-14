@@ -31,6 +31,8 @@ def towers_geojson(request):
                 "elevation_m": site.elevation_m,
                 "coverage_radius_km": site.coverage_radius_km,
                 "fire_count": site.fires_in_range().count(),
+                # "viewshed" (terrain line-of-sight) or "circle" (naive radius).
+                "coverage_kind": site.coverage_kind,
                 # GEOSGeometry.geojson is a string; parse so it nests as JSON.
                 "coverage": json.loads(site.coverage_area().geojson),
             },

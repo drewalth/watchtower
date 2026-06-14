@@ -7,7 +7,7 @@ satellite data.
 This is a learning/portfolio project for geospatial data engineering. It is
 built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
 
-> **Status:** Phase 2 complete — FIRMS ETL + the core spatial join.
+> **Status:** Phase 3 (viewshed) — terrain line-of-sight coverage.
 
 ## Tech stack
 
@@ -16,7 +16,9 @@ built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
 - Docker + docker-compose (so you never install GDAL/GEOS/PROJ on the host)
 - [uv](https://docs.astral.sh/uv/) for Python dependency management
 - NASA FIRMS (VIIRS) as the live fire-detection data source
-- `requests` + `pandas` for the ETL; Leaflet (CDN) for the map
+- Copernicus GLO-30 DEM (AWS Open Data) + GDAL `gdal_viewshed` for terrain viewsheds
+- `requests` + `pandas` for the ETL; `rasterio` + `shapely` for the viewshed
+- Leaflet (CDN) for the map
 
 ## Prerequisites
 
@@ -45,6 +47,10 @@ docker compose exec web python manage.py seed_towers
 # 5. Ingest live fire detections from NASA FIRMS (needs FIRMS_MAP_KEY in .env).
 docker compose exec web python manage.py ingest_fires            # last 1 day
 docker compose exec web python manage.py ingest_fires --day-range 3
+
+# 6. (Optional, Phase 3) Compute terrain viewsheds — replaces the coverage
+#    circles with real line-of-sight. Downloads DEM windows; ~1 min per tower.
+docker compose exec web python manage.py compute_viewsheds
 ```
 
 The web service runs the Django dev server at <http://localhost:8000>:
@@ -65,9 +71,26 @@ rather than duplicating it (the ingest dedups on a stable `external_uid`).
   FIRMS' per-request limits (HTTP 400); use a smaller range if so.
 - On a calm day FIRMS may return **zero** detections in the area — that's normal
   and handled gracefully (no crash, empty map layer).
-- Coverage uses a naive `coverage_radius_km` (default 20 km), reprojected to the
-  local UTM zone for accurate metre buffering. Whether any live fire currently
-  falls within a given lookout's radius is down to real-world fire activity.
+- Coverage uses a naive `coverage_radius_km`, reprojected to the local UTM zone
+  for accurate metre buffering. Whether any live fire currently falls within a
+  given lookout's radius is down to real-world fire activity.
+
+### Phase 3 — terrain viewsheds
+
+`compute_viewsheds` replaces each lookout's coverage *circle* with a real
+line-of-sight **viewshed**: the ground the observer can actually see once ridges
+block the view. Pipeline (`towers/viewshed.py`):
+
+1. Read the relevant 1°×1° Copernicus GLO-30 DEM tiles straight from AWS over
+   HTTP (`/vsicurl/`, no download, no credentials).
+2. Mosaic + reproject the window to the tower's UTM zone (metres) with `gdalwarp`.
+3. Run `gdal_viewshed` from the observer (DEM ground + mast height).
+4. Polygonize the visible cells (`rasterio` + `shapely`) and reproject to 4326.
+
+When a tower has a stored viewshed, both the map coverage (drawn green vs. the
+blue circle) and `fires_in_range()` use it instead of the radius — so the
+"fires I can see" count reflects terrain. In the seeded data this drops Boucher
+Hill from 6 in-radius fires to **1 actually visible**.
 
 ### Verify the spatial stack
 

@@ -7,9 +7,12 @@ dependencies = [
     # Phase 0 — core framework + spatial DB driver.
     "django~=5.1",
     "psycopg[binary]~=3.2",
-    # Phase 2 — FIRMS ETL: HTTP fetch + CSV parsing. (rasterio arrives in Phase 3.)
+    # Phase 2 — FIRMS ETL: HTTP fetch + CSV parsing.
     "requests~=2.32",
     "pandas~=2.2",
+    # Phase 3 — viewshed: read DEM rasters + polygonize the visible area.
+    "rasterio~=1.4",
+    "shapely~=2.0",
 ]
 
 [dependency-groups]
