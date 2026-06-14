@@ -1,0 +1,35 @@
+{
+  // Visit https://aka.ms/tsconfig to read more about this file
+  "compilerOptions": {
+    // Environment — a browser app bundled by Vite.
+    "target": "esnext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx",
+    "useDefineForClassFields": true,
+
+    // Vite transpiles; tsc is type-check only.
+    "noEmit": true,
+    "sourceMap": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "verbatimModuleSyntax": true,
+    "noUncheckedSideEffectImports": true,
+    "allowImportingTsExtensions": true,
+    "skipLibCheck": true,
+    "resolveJsonModule": true,
+
+    // Path alias — `@/...` resolves to the Vite source root (./assets).
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./assets/*"]
+    },
+
+    // Strict type checking.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true
+  },
+  "include": ["assets", "vite.config.js"]
+}

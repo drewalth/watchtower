@@ -25,3 +25,10 @@ htmlcov/
 .idea/
 .vscode/
 .DS_Store
+.ruff_cache/
+
+node_modules/
+
+# Vite build output (generated from assets/ by `npm run build`)
+/static/
+*.tsbuildinfo

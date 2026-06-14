@@ -18,7 +18,9 @@ built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
 - NASA FIRMS (VIIRS) as the live fire-detection data source
 - Copernicus GLO-30 DEM (AWS Open Data) + GDAL `gdal_viewshed` for terrain viewsheds
 - `requests` + `pandas` for the ETL; `rasterio` + `shapely` for the viewshed
-- Leaflet (CDN) for the map
+- React + TypeScript + Vite (via [django-vite](https://github.com/MrBin99/django-vite))
+  for the frontend, with [mapcn](https://www.mapcn.dev) (MapLibre GL) for the map
+  and Tailwind CSS
 
 ## Prerequisites
 
@@ -53,10 +55,12 @@ docker compose exec web python manage.py ingest_fires --day-range 3
 docker compose exec web python manage.py compute_viewsheds
 ```
 
-The web service runs the Django dev server at <http://localhost:8000>:
+The web service runs the Django dev server at <http://localhost:8000>. To work
+on the map you also need the Vite dev server running (see
+[Frontend](#frontend-react--vite) below):
 
-- `/` — Leaflet map: tower markers, coverage circles, and live fire points
-  (red). Click a tower to see how many fires are currently in its range.
+- `/` — React map (MapLibre via mapcn): tower markers, coverage polygons, and
+  live fire points (red). Click a tower or fire for details.
 - `/api/towers.geojson` — towers (with coverage polygons + in-range counts).
 - `/api/fires.geojson` — all fire detections.
 - `/api/towers/<id>/fires.geojson` — fires within one tower's coverage.
@@ -105,6 +109,36 @@ docker compose exec web python manage.py shell -c \
 ```bash
 docker compose exec web pytest
 ```
+
+## Frontend (React + Vite)
+
+The map is a small React + TypeScript app under [`assets/`](assets/), built with
+Vite and served into Django by django-vite. The map components come from
+[mapcn](https://www.mapcn.dev) (shadcn-style, MapLibre GL) and live in
+`assets/components/ui/map.tsx`; `assets/components/MapView.tsx` is the app code.
+
+Node runs on the **host** (it's intentionally not in the Docker image). With
+Docker already up for Django + Postgres:
+
+```bash
+nvm use            # Node 24 (see .nvmrc)
+npm install        # first time only
+npm run dev        # Vite dev server on http://localhost:5173 (HMR)
+```
+
+Then open <http://localhost:8000> — in `DEBUG` mode django-vite loads the app
+from the Vite dev server, so edits hot-reload. The map uses free CARTO basemap
+tiles (no API key).
+
+For a production-style build, generate the hashed bundle + manifest into
+`static/` (django-vite then serves those when `DEBUG=0`):
+
+```bash
+npm run build
+```
+
+To add more shadcn/mapcn components: `npx shadcn@latest add <name>` (config in
+`components.json`; everything resolves under the `@/ → assets/` alias).
 
 ## Configuration
 

@@ -24,6 +24,10 @@ INSTALLED_APPS = [
     # GeoDjango — gives us spatial model fields, spatial lookups and the
     # admin map widgets.
     "django.contrib.gis",
+    # Frontend: serves the Vite-built React bundle (dev server in DEBUG,
+    # hashed manifest assets in production) and live-reloads on changes.
+    "django_vite",
+    "django_browser_reload",
     "towers",
 ]
 
@@ -35,6 +39,8 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Reloads the browser when templates/static/Python change (DEBUG only).
+    "django_browser_reload.middleware.BrowserReloadMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -84,5 +90,16 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+# Vite writes its built bundle + manifest here; also where collectstatic looks.
+STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# django-vite: in DEBUG, assets load from the Vite dev server (with HMR) on
+# :5173; otherwise they're resolved from the hashed build manifest.
+DJANGO_VITE = {
+    "default": {
+        "dev_mode": DEBUG,
+        "manifest_path": BASE_DIR / "static" / ".vite" / "manifest.json",
+    }
+}
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

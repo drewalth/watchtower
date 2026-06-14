@@ -1,3 +1,4 @@
+{% load django_vite %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -5,99 +6,13 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Watchtower — fire lookouts</title>
 
-  <!-- Leaflet via CDN; no build step. -->
-  <link rel="stylesheet"
-        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-        integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-        crossorigin="">
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-          integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-          crossorigin=""></script>
-
-  <style>
-    html, body { margin: 0; height: 100%; }
-    #map { height: 100vh; width: 100%; }
-  </style>
+  {# Dev-only: React Fast Refresh runtime + Vite HMR client (no-ops in prod). #}
+  {% vite_react_refresh %}
+  {% vite_hmr_client %}
 </head>
 <body>
-  <div id="map"></div>
-
-  <script>
-    // Center on California; fitBounds adjusts once towers load.
-    const map = L.map("map").setView([38.5, -120.5], 6);
-
-    L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-      maxZoom: 18,
-      attribution: "&copy; OpenStreetMap contributors",
-    }).addTo(map);
-
-    // --- Towers + their coverage areas ---
-    fetch("{% url 'towers-geojson' %}")
-      .then((response) => response.json())
-      .then((geojson) => {
-        // Naive radius circles are blue; computed terrain viewsheds are green.
-        const circleStyle = { color: "#2b8cbe", weight: 1, fillOpacity: 0.08 };
-        const viewshedStyle = { color: "#238b45", weight: 1, fillOpacity: 0.18 };
-        const coverage = L.geoJSON(null).addTo(map);
-
-        const markers = L.geoJSON(geojson, {
-          onEachFeature: (feature, layer) => {
-            const p = feature.properties;
-            // Draw this tower's coverage polygon, styled by kind.
-            if (p.coverage) {
-              coverage.addData({
-                type: "Feature",
-                geometry: p.coverage,
-                properties: { kind: p.coverage_kind },
-              });
-            }
-            const kind =
-              p.coverage_kind === "viewshed"
-                ? "terrain viewshed"
-                : `${p.coverage_radius_km} km radius`;
-            layer.bindPopup(
-              `<strong>${p.name}</strong><br>` +
-              `Elevation: ${p.elevation_m} m<br>` +
-              `Coverage: ${kind}<br>` +
-              `<strong>Fires in range: ${p.fire_count}</strong>`
-            );
-          },
-        }).addTo(map);
-
-        coverage.setStyle((feature) =>
-          feature.properties.kind === "viewshed" ? viewshedStyle : circleStyle
-        );
-
-        if (geojson.features.length) {
-          map.fitBounds(markers.getBounds().pad(0.25));
-        }
-      });
-
-    // --- Live fire detections (red) ---
-    fetch("{% url 'fires-geojson' %}")
-      .then((response) => response.json())
-      .then((geojson) => {
-        L.geoJSON(geojson, {
-          pointToLayer: (feature, latlng) =>
-            L.circleMarker(latlng, {
-              radius: 4,
-              color: "#d7301f",
-              fillColor: "#ef6548",
-              fillOpacity: 0.8,
-              weight: 1,
-            }),
-          onEachFeature: (feature, layer) => {
-            const p = feature.properties;
-            layer.bindPopup(
-              `<strong>Fire detection</strong><br>` +
-              `Source: ${p.source}<br>` +
-              `Acquired: ${p.acquired_at}<br>` +
-              `Confidence: ${p.confidence}<br>` +
-              `FRP: ${p.frp ?? "n/a"} MW`
-            );
-          },
-        }).addTo(map);
-      });
-  </script>
+  {# The React app (assets/main.tsx) mounts here. #}
+  <div id="root"></div>
+  {% vite_asset 'assets/main.tsx' %}
 </body>
 </html>
