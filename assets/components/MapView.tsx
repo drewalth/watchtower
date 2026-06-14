@@ -62,6 +62,7 @@ export function MapView() {
   return (
     <Map center={CA_CENTER} zoom={6} className="h-full w-full">
       <MapControls showZoom showFullscreen />
+      <MapLegend towers={towers} />
       {towers && <CoverageLayer towers={towers} />}
       {towers && <TowerMarkers towers={towers} />}
       {fires && <FiresLayer fires={fires} onSelect={setSelectedFire} />}
@@ -76,6 +77,54 @@ export function MapView() {
         </MapPopup>
       )}
     </Map>
+  );
+}
+
+/** A small overlay key for the map's symbols. Coverage rows show only for the
+ *  kinds actually present in the data, so the legend matches what's drawn. */
+function MapLegend({ towers }: { towers: TowerCollection | null }) {
+  const kinds = new Set(towers?.features.map((f) => f.properties.coverage_kind));
+  return (
+    <div className="bg-background/95 text-foreground absolute top-2 left-2 z-10 rounded-md border p-3 text-xs shadow-sm backdrop-blur-sm">
+      <div className="mb-1.5 font-semibold">Legend</div>
+      <ul className="space-y-1.5">
+        <li className="flex items-center gap-2">
+          <span className="flex size-4 items-center justify-center rounded-full border-2 border-white bg-slate-800 text-white shadow">
+            <TowerControl className="size-2.5" />
+          </span>
+          Fire lookout
+        </li>
+        {kinds.has("viewshed") && (
+          <li className="flex items-center gap-2">
+            <Swatch color={VIEWSHED} />
+            Terrain viewshed
+          </li>
+        )}
+        {kinds.has("circle") && (
+          <li className="flex items-center gap-2">
+            <Swatch color={CIRCLE} />
+            Coverage radius
+          </li>
+        )}
+        <li className="flex items-center gap-2">
+          <span
+            className="size-3 rounded-full"
+            style={{ backgroundColor: "#ef6548", border: "1px solid #d7301f" }}
+          />
+          Active fire
+        </li>
+      </ul>
+    </div>
+  );
+}
+
+/** Filled, translucent square outlined in `color` — mirrors a coverage polygon. */
+function Swatch({ color }: { color: string }) {
+  return (
+    <span
+      className="size-3 rounded-[2px] border-2"
+      style={{ borderColor: color, backgroundColor: `${color}33` }}
+    />
   );
 }
 
