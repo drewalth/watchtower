@@ -27,7 +27,9 @@ Copernicus GLO-30 DEM ─compute_viewsheds─▶ WatchtowerSite.viewshed (MultiP
 - **`towers/models.py`** — `WatchtowerSite` and `FireDetection`. Coverage is a
   computed viewshed when present, otherwise a reprojected radius buffer;
   `fires_in_range()` queries with `intersects` or `distance_lte` accordingly.
-  Detections dedup on a stable `external_uid`, so ingest is idempotent.
+  Detections dedup on a stable `external_uid`, so ingest is idempotent. The
+  ingest pulls all three VIIRS NRT sensors (NOAA-20, SNPP, NOAA-21) by default,
+  fetching each independently so a single failing sensor never sinks the run.
 - **`towers/viewshed.py`** — reads Copernicus GLO-30 DEM COGs from AWS Open Data
   over HTTP (`/vsicurl/`, no download or credentials), warps to UTM, runs
   `gdal_viewshed`, and polygonizes the visible cells back to 4326.
@@ -62,13 +64,18 @@ out of the image.
 
 ```bash
 cp .env.example .env                # optional; defaults work. Set FIRMS_MAP_KEY for ingest.
-docker compose up --build           # db + web
+docker compose up --build           # db + web + scheduler
 
 docker compose exec web python manage.py migrate        # enables PostGIS + schema
 docker compose exec web python manage.py seed_towers    # 5 real CA lookouts
 docker compose exec web python manage.py ingest_fires --day-range 3   # needs FIRMS_MAP_KEY
 docker compose exec web python manage.py compute_viewsheds            # ~1 min/tower
 ```
+
+Once the towers are seeded and `FIRMS_MAP_KEY` is set, the **`scheduler`**
+service re-runs `ingest_fires` **hourly** on its own, so fire data stays fresh
+without manual re-ingest (`docker compose logs -f scheduler` to watch it). The
+one-off `ingest_fires` above just primes the data immediately.
 
 Django serves at <http://localhost:8000>. For the map you also need Vite on the
 host (django-vite loads from the dev server in `DEBUG`):

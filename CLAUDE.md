@@ -38,9 +38,10 @@ single `towers` app.
   `assets/main.tsx`; map logic in `assets/components/MapView.tsx`; vendored mapcn
   UI in `assets/components/ui/map.tsx`. It fetches the GeoJSON endpoints above.
 - **Management commands** (`towers/management/commands/`) — the ETL.
-  `seed_towers` (5 real CA lookouts), `ingest_fires` (FIRMS CSV → DB),
-  `compute_viewsheds` (DEM → stored polygons). All idempotent via
-  `update_or_create`.
+  `seed_towers` (5 real CA lookouts), `ingest_fires` (FIRMS CSV → DB; pulls
+  all three VIIRS NRT sensors — NOAA-20/SNPP/NOAA-21 — by default, isolating
+  each so one failing sensor doesn't lose the others), `compute_viewsheds`
+  (DEM → stored polygons). All idempotent via `update_or_create`.
 
 ### Critical spatial convention
 
@@ -58,7 +59,7 @@ see `.nvmrc`). The GDAL/GEOS/PROJ native libs only exist in the image, so run
 all Python/Django commands through `docker compose exec web`.
 
 ```bash
-docker compose up --build                          # start db + web
+docker compose up --build                          # start db + web + scheduler
 docker compose exec web python manage.py migrate   # PostGIS + schema
 docker compose exec web python manage.py seed_towers
 docker compose exec web python manage.py ingest_fires --day-range 3   # needs FIRMS_MAP_KEY in .env
@@ -76,6 +77,14 @@ nvm use && npm install        # first time
 npm run dev                   # Vite HMR on :5173; open Django at :8000
 npm run build                 # hashed bundle + manifest into static/ (for DEBUG=0)
 ```
+
+`docker compose up` also starts a **`scheduler`** sidecar (reuses the `web`
+image) that runs `ingest_fires --day-range 2` **hourly** to keep fire data
+fresh (all three VIIRS NRT sensors) — it does one pass immediately on start,
+then loops every hour. Manual
+`ingest_fires` runs are still fine (idempotent). Watch it with
+`docker compose logs -f scheduler`; it needs `FIRMS_MAP_KEY` set and the towers
+seeded, and logs-and-retries if either is missing.
 
 In `DEBUG` mode django-vite loads assets from the Vite dev server, so you need
 **both** `npm run dev` (host) and the Django server (Docker) running, then open
