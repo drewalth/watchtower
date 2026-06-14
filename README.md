@@ -7,7 +7,7 @@ satellite data.
 This is a learning/portfolio project for geospatial data engineering. It is
 built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
 
-> **Status:** Phase 0 complete — project scaffold + spatial database.
+> **Status:** Phase 1 complete — watchtower model + Leaflet map.
 
 ## Tech stack
 
@@ -36,10 +36,19 @@ docker compose up --build
 
 # 3. In another terminal, run migrations (enables PostGIS + applies schema).
 docker compose exec web python manage.py migrate
+
+# 4. Seed ~5 real California fire lookouts.
+docker compose exec web python manage.py seed_towers
 ```
 
-The web service runs the Django dev server at <http://localhost:8000>.
-(The map and API endpoints arrive in Phase 1; for now `/admin/` is available.)
+The web service runs the Django dev server at <http://localhost:8000>:
+
+- `/` — Leaflet map showing the lookout towers as markers.
+- `/api/towers.geojson` — towers as a GeoJSON `FeatureCollection`.
+- `/admin/` — Django admin (with a map widget for tower locations).
+
+`seed_towers` is idempotent — re-running it refreshes the seed data rather than
+duplicating it.
 
 ### Verify the spatial stack
 

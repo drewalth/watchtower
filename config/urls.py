@@ -1,7 +1,7 @@
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path
 
 urlpatterns = [
     path("admin/", admin.site.urls),
-    # The map view and GeoJSON API endpoints are added in Phase 1.
+    path("", include("towers.urls")),
 ]
