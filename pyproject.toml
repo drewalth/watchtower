@@ -5,10 +5,11 @@ description = "GeoDjango + PostGIS web map of wildfire lookout cameras and the a
 requires-python = ">=3.12"
 dependencies = [
     # Phase 0 — core framework + spatial DB driver.
-    # Geospatial ETL libs (geopandas, shapely, requests) arrive in Phase 2;
-    # rasterio in Phase 3.
     "django~=5.1",
     "psycopg[binary]~=3.2",
+    # Phase 2 — FIRMS ETL: HTTP fetch + CSV parsing. (rasterio arrives in Phase 3.)
+    "requests~=2.32",
+    "pandas~=2.2",
 ]
 
 [dependency-groups]

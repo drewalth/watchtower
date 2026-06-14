@@ -7,7 +7,7 @@ satellite data.
 This is a learning/portfolio project for geospatial data engineering. It is
 built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
 
-> **Status:** Phase 1 complete — watchtower model + Leaflet map.
+> **Status:** Phase 2 complete — FIRMS ETL + the core spatial join.
 
 ## Tech stack
 
@@ -15,14 +15,16 @@ built in phases — see [`watchtower-plan.md`](watchtower-plan.md).
 - PostgreSQL 16 + PostGIS 3.4
 - Docker + docker-compose (so you never install GDAL/GEOS/PROJ on the host)
 - [uv](https://docs.astral.sh/uv/) for Python dependency management
-- Leaflet (CDN) for the map (Phase 1+)
+- NASA FIRMS (VIIRS) as the live fire-detection data source
+- `requests` + `pandas` for the ETL; Leaflet (CDN) for the map
 
 ## Prerequisites
 
 - **Docker Desktop** installed and running.
-- *(Phase 2+)* A free **NASA FIRMS `MAP_KEY`**. Request one at
+- A free **NASA FIRMS `MAP_KEY`** (needed for the Phase 2 ingest, not for the
+  map itself). Request one at
   <https://firms.modaps.eosdis.nasa.gov/api/map_key/> and put it in `.env` as
-  `FIRMS_MAP_KEY=...`. Not needed for Phase 0/1.
+  `FIRMS_MAP_KEY=...`.
 
 ## Quick start
 
@@ -39,16 +41,33 @@ docker compose exec web python manage.py migrate
 
 # 4. Seed ~5 real California fire lookouts.
 docker compose exec web python manage.py seed_towers
+
+# 5. Ingest live fire detections from NASA FIRMS (needs FIRMS_MAP_KEY in .env).
+docker compose exec web python manage.py ingest_fires            # last 1 day
+docker compose exec web python manage.py ingest_fires --day-range 3
 ```
 
 The web service runs the Django dev server at <http://localhost:8000>:
 
-- `/` — Leaflet map showing the lookout towers as markers.
-- `/api/towers.geojson` — towers as a GeoJSON `FeatureCollection`.
-- `/admin/` — Django admin (with a map widget for tower locations).
+- `/` — Leaflet map: tower markers, coverage circles, and live fire points
+  (red). Click a tower to see how many fires are currently in its range.
+- `/api/towers.geojson` — towers (with coverage polygons + in-range counts).
+- `/api/fires.geojson` — all fire detections.
+- `/api/towers/<id>/fires.geojson` — fires within one tower's coverage.
+- `/admin/` — Django admin (with map widgets).
 
-`seed_towers` is idempotent — re-running it refreshes the seed data rather than
-duplicating it.
+Both `seed_towers` and `ingest_fires` are idempotent — re-running refreshes data
+rather than duplicating it (the ingest dedups on a stable `external_uid`).
+
+### Notes on the FIRMS ingest
+
+- `--day-range` accepts 1–10, but a large bounding box over many days can exceed
+  FIRMS' per-request limits (HTTP 400); use a smaller range if so.
+- On a calm day FIRMS may return **zero** detections in the area — that's normal
+  and handled gracefully (no crash, empty map layer).
+- Coverage uses a naive `coverage_radius_km` (default 20 km), reprojected to the
+  local UTM zone for accurate metre buffering. Whether any live fire currently
+  falls within a given lookout's radius is down to real-world fire activity.
 
 ### Verify the spatial stack
 

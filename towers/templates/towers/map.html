@@ -31,23 +31,59 @@
       attribution: "&copy; OpenStreetMap contributors",
     }).addTo(map);
 
+    // --- Towers + their coverage areas ---
     fetch("{% url 'towers-geojson' %}")
       .then((response) => response.json())
       .then((geojson) => {
-        const layer = L.geoJSON(geojson, {
-          onEachFeature: (feature, lyr) => {
+        const coverage = L.geoJSON(null, {
+          style: { color: "#2b8cbe", weight: 1, fillOpacity: 0.08 },
+        }).addTo(map);
+
+        const markers = L.geoJSON(geojson, {
+          onEachFeature: (feature, layer) => {
             const p = feature.properties;
-            lyr.bindPopup(
+            // Draw the reprojected coverage polygon for this tower.
+            if (p.coverage) {
+              coverage.addData(p.coverage);
+            }
+            layer.bindPopup(
               `<strong>${p.name}</strong><br>` +
               `Elevation: ${p.elevation_m} m<br>` +
-              `Coverage radius: ${p.coverage_radius_km} km`
+              `Coverage radius: ${p.coverage_radius_km} km<br>` +
+              `<strong>Fires in range: ${p.fire_count}</strong>`
             );
           },
         }).addTo(map);
 
         if (geojson.features.length) {
-          map.fitBounds(layer.getBounds().pad(0.2));
+          map.fitBounds(markers.getBounds().pad(0.25));
         }
+      });
+
+    // --- Live fire detections (red) ---
+    fetch("{% url 'fires-geojson' %}")
+      .then((response) => response.json())
+      .then((geojson) => {
+        L.geoJSON(geojson, {
+          pointToLayer: (feature, latlng) =>
+            L.circleMarker(latlng, {
+              radius: 4,
+              color: "#d7301f",
+              fillColor: "#ef6548",
+              fillOpacity: 0.8,
+              weight: 1,
+            }),
+          onEachFeature: (feature, layer) => {
+            const p = feature.properties;
+            layer.bindPopup(
+              `<strong>Fire detection</strong><br>` +
+              `Source: ${p.source}<br>` +
+              `Acquired: ${p.acquired_at}<br>` +
+              `Confidence: ${p.confidence}<br>` +
+              `FRP: ${p.frp ?? "n/a"} MW`
+            );
+          },
+        }).addTo(map);
       });
   </script>
 </body>
