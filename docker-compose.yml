@@ -1,0 +1,42 @@
+# Compose auto-loads a `.env` file in this directory for ${VAR} substitution,
+# so the defaults below let `docker compose up` work even before you create one.
+# Copy .env.example to .env to override (and to set FIRMS_MAP_KEY in Phase 2).
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-watchtower}
+      POSTGRES_USER: ${POSTGRES_USER:-watchtower}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchtower}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-watchtower} -d ${POSTGRES_DB:-watchtower}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    ports:
+      - "5432:5432"
+
+  web:
+    build: .
+    command: python manage.py runserver 0.0.0.0:8000
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-watchtower}
+      POSTGRES_USER: ${POSTGRES_USER:-watchtower}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-watchtower}
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY:-dev-insecure-key-change-me}
+      DJANGO_DEBUG: ${DJANGO_DEBUG:-1}
+      FIRMS_MAP_KEY: ${FIRMS_MAP_KEY:-}
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

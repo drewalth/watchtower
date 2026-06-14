@@ -1,0 +1,24 @@
+[project]
+name = "watchtower"
+version = "0.1.0"
+description = "GeoDjango + PostGIS web map of wildfire lookout cameras and the active fires they can see."
+requires-python = ">=3.12"
+dependencies = [
+    # Phase 0 — core framework + spatial DB driver.
+    # Geospatial ETL libs (geopandas, shapely, requests) arrive in Phase 2;
+    # rasterio in Phase 3.
+    "django~=5.1",
+    "psycopg[binary]~=3.2",
+]
+
+[dependency-groups]
+# Installed by default with `uv sync`; pass --no-dev to skip in production.
+dev = [
+    "pytest~=8.3",
+    "pytest-django~=4.9",
+]
+
+[tool.uv]
+# This is a Django application, not a distributable package, so uv shouldn't
+# try to build/install it — just manage the environment.
+package = false
