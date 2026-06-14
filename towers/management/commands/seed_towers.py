@@ -3,6 +3,12 @@ from django.core.management.base import BaseCommand
 
 from towers.models import WatchtowerSite
 
+# Naive coverage radius for the seeded lookouts. A staffed lookout on a high
+# peak can realistically spot a smoke column tens of km out, so 50 km is a more
+# representative "what can this tower see" radius than the 20 km model default.
+# (Phase 3's viewshed replaces this circle with real terrain line-of-sight.)
+DEFAULT_COVERAGE_KM = 50.0
+
 # Five real California fire lookouts. Coordinates and elevations are approximate
 # (sourced from public lookout listings) — good enough for a demo map. lon/lat
 # order matters: PostGIS/GeoJSON are (x=lon, y=lat).
@@ -28,6 +34,7 @@ class Command(BaseCommand):
                 defaults={
                     "location": Point(tower["lon"], tower["lat"], srid=4326),
                     "elevation_m": tower["elevation_m"],
+                    "coverage_radius_km": DEFAULT_COVERAGE_KM,
                 },
             )
             created += was_created
