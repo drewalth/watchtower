@@ -44,17 +44,21 @@ services:
       db:
         condition: service_healthy
 
-  # Hourly FIRMS ingest. Reuses the `web` image (GDAL et al. already baked in)
+  # Hourly data refresh. Reuses the `web` image (GDAL et al. already baked in)
   # and loops ingest → sleep 1h. Runs once immediately on start so a fresh
-  # `docker compose up` populates fires right away. `--day-range 2` gives a
-  # rolling 48h window so late-arriving NRT detections get corrected next pass;
-  # `|| true` keeps the loop alive across transient failures (missing key,
-  # un-seeded DB, FIRMS hiccup) — the error still shows in this service's logs.
+  # `docker compose up` populates data right away. Each step is idempotent and
+  # guarded with `|| true` so one failure (missing key, un-seeded DB, FIRMS/
+  # Open-Meteo hiccup) never kills the loop — errors still show in the logs.
+  #   • ingest_fires --day-range 2 : rolling 48h FIRMS window
+  #   • ingest_weather             : daily FWI inputs per tower (Open-Meteo)
+  #   • compute_fire_risk          : recompute risk from the freshest weather
   scheduler:
     build: .
     command: >
       sh -c 'while true; do
         python manage.py ingest_fires --day-range 2 || true;
+        python manage.py ingest_weather || true;
+        python manage.py compute_fire_risk || true;
         sleep 3600;
       done'
     volumes:

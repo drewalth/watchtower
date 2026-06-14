@@ -2,6 +2,35 @@ from django.contrib.gis.db import models
 from django.contrib.gis.measure import D
 
 
+class FuelType(models.TextChoices):
+    """Dominant vegetation/fuel around a tower — a coarse flammability proxy."""
+
+    SPARSE = "sparse", "Sparse / rock"
+    GRASS = "grass", "Grass"
+    MIXED = "mixed", "Mixed forest"
+    SHRUB = "shrub", "Shrub / chaparral"
+    CONIFER = "conifer", "Conifer / timber"
+
+
+# Multiplier applied to the FWI before risk scoring (see fire_weather.to_risk):
+# 1.0 is neutral; sparse fuels damp risk, flammable conifer/chaparral amplify it.
+_FUEL_FACTORS = {
+    FuelType.SPARSE: 0.6,
+    FuelType.GRASS: 0.9,
+    FuelType.MIXED: 1.0,
+    FuelType.SHRUB: 1.15,
+    FuelType.CONIFER: 1.25,
+}
+
+
+class RiskLevel(models.TextChoices):
+    LOW = "low", "Low"
+    MODERATE = "moderate", "Moderate"
+    HIGH = "high", "High"
+    VERY_HIGH = "very_high", "Very high"
+    EXTREME = "extreme", "Extreme"
+
+
 class WatchtowerSite(models.Model):
     """A fire-lookout site: a camera/observer on a high vantage point.
 
@@ -16,6 +45,12 @@ class WatchtowerSite(models.Model):
     coverage_radius_km = models.FloatField(
         default=20.0,
         help_text="Naive line-of-sight radius; used for the coverage model.",
+    )
+    fuel_type = models.CharField(
+        max_length=20,
+        choices=FuelType.choices,
+        default=FuelType.MIXED,
+        help_text="Dominant fuel; scales the fire-weather risk for this tower.",
     )
     # Terrain line-of-sight polygon (Phase 3). Populated by compute_viewsheds;
     # when present it supersedes the naive radius circle for coverage + queries.
@@ -52,6 +87,16 @@ class WatchtowerSite(models.Model):
     def coverage_kind(self):
         return "viewshed" if self.viewshed is not None else "circle"
 
+    @property
+    def fuel_factor(self):
+        """Vegetation multiplier for risk scoring (see fire_weather.to_risk)."""
+        return _FUEL_FACTORS.get(self.fuel_type, 1.0)
+
+    @property
+    def latest_risk(self):
+        """Most recent FireRiskAssessment for this tower, or None if none yet."""
+        return self.risk_assessments.order_by("-date").first()
+
     def fires_in_range(self, since=None):
         """FireDetections this tower can see: inside the viewshed polygon if one
         is computed, else within the radius. ``distance_lte`` uses 'spheroid' to
@@ -86,3 +131,57 @@ class FireDetection(models.Model):
 
     def __str__(self):
         return f"{self.source} @ {self.acquired_at:%Y-%m-%d %H:%M} UTC"
+
+
+class WeatherObservation(models.Model):
+    """One tower-day of the noon weather inputs the FWI system consumes.
+
+    Stored as a daily time series per tower so the recursive moisture codes can be
+    walked forward. Deduped on a stable ``external_uid`` (tower/date/source) so
+    re-ingesting is idempotent — same pattern as FireDetection.
+    """
+
+    tower = models.ForeignKey(
+        WatchtowerSite, on_delete=models.CASCADE, related_name="weather"
+    )
+    date = models.DateField(help_text="Local calendar day of the observation.")
+    temp_c = models.FloatField(help_text="Daily max temperature (°C), noon proxy.")
+    rh_pct = models.FloatField(help_text="Daily min relative humidity (%).")
+    wind_kph = models.FloatField(help_text="Daily max wind speed (km/h).")
+    precip_24h_mm = models.FloatField(help_text="24h precipitation total (mm).")
+    snow_depth_cm = models.FloatField(help_text="Snow on the ground (cm).")
+    source = models.CharField(max_length=50, default="open-meteo")
+    external_uid = models.CharField(max_length=255, unique=True)
+
+    class Meta:
+        ordering = ["tower", "date"]
+
+    def __str__(self):
+        return f"{self.tower.name} weather {self.date}"
+
+
+class FireRiskAssessment(models.Model):
+    """One tower-day of computed FWI-system indices + the derived risk rating."""
+
+    tower = models.ForeignKey(
+        WatchtowerSite, on_delete=models.CASCADE, related_name="risk_assessments"
+    )
+    date = models.DateField()
+    ffmc = models.FloatField(help_text="Fine Fuel Moisture Code.")
+    dmc = models.FloatField(help_text="Duff Moisture Code.")
+    dc = models.FloatField(help_text="Drought Code.")
+    isi = models.FloatField(help_text="Initial Spread Index.")
+    bui = models.FloatField(help_text="Buildup Index.")
+    fwi = models.FloatField(help_text="Fire Weather Index.")
+    risk_score = models.FloatField(help_text="FWI scaled to 0–100 for display.")
+    risk_level = models.CharField(max_length=20, choices=RiskLevel.choices)
+    snow_covered = models.BooleanField(
+        default=False, help_text="Ground snow-covered → fire risk suppressed."
+    )
+
+    class Meta:
+        ordering = ["tower", "date"]
+        unique_together = ("tower", "date")
+
+    def __str__(self):
+        return f"{self.tower.name} risk {self.date}: {self.risk_level}"

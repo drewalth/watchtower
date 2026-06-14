@@ -7,8 +7,10 @@ import requests
 from django.conf import settings
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand, CommandError
+from pydantic import ValidationError
 
 from towers.models import FireDetection, WatchtowerSite
+from towers.schemas import FirmsRow
 
 # FIRMS "area" endpoint: CSV detections within a bbox over the last N days.
 FIRMS_URL = (
@@ -23,15 +25,6 @@ DEFAULT_SOURCES = [
     "VIIRS_SNPP_NRT",
     "VIIRS_NOAA21_NRT",
 ]
-
-
-def _nullable_float(value):
-    """Coerce a CSV cell to float, or None for blanks/NaN/garbage."""
-    try:
-        number = float(value)
-    except (TypeError, ValueError):
-        return None
-    return None if pd.isna(number) else number
 
 
 class Command(BaseCommand):
@@ -160,7 +153,7 @@ class Command(BaseCommand):
         for row in df.itertuples(index=False):
             try:
                 fields = self._build_fields(row, source)
-            except (TypeError, ValueError):
+            except (TypeError, ValueError, ValidationError):
                 skipped += 1
                 continue
             # update_or_create on the stable external_uid is what makes
@@ -195,21 +188,25 @@ class Command(BaseCommand):
 
     @staticmethod
     def _build_fields(row, source):
-        lat = float(row.latitude)
-        lon = float(row.longitude)
-        acq_date = str(row.acq_date)
-        # FIRMS acq_time is HHMM, sometimes unpadded (e.g. 118 -> 01:18 UTC).
-        acq_time = str(row.acq_time).zfill(4)
+        # Validate the raw CSV row against our expected world view before mapping
+        # it to a model: required geometry/time fields must be present + numeric,
+        # optional measurements (frp, brightness) coerce NaN→None. A malformed row
+        # raises ValidationError and is skipped by the caller.
+        parsed = FirmsRow.model_validate(row._asdict())
+        acq_time = parsed.acq_time_hhmm  # HHMM, sometimes unpadded (118 -> 0118).
         acquired_at = datetime.strptime(
-            f"{acq_date} {acq_time}", "%Y-%m-%d %H%M"
+            f"{parsed.acq_date} {acq_time}", "%Y-%m-%d %H%M"
         ).replace(tzinfo=timezone.utc)
 
         return {
-            "external_uid": f"{lat:.5f}_{lon:.5f}_{acq_date}_{acq_time}_{source}",
-            "location": Point(lon, lat, srid=4326),
+            "external_uid": (
+                f"{parsed.latitude:.5f}_{parsed.longitude:.5f}_"
+                f"{parsed.acq_date}_{acq_time}_{source}"
+            ),
+            "location": Point(parsed.longitude, parsed.latitude, srid=4326),
             "acquired_at": acquired_at,
             "source": source,
-            "frp": _nullable_float(getattr(row, "frp", None)),
-            "brightness": _nullable_float(getattr(row, "bright_ti4", None)),
-            "confidence": str(getattr(row, "confidence", "")),
+            "frp": parsed.frp,
+            "brightness": parsed.bright_ti4,
+            "confidence": parsed.confidence,
         }

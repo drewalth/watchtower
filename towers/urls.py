@@ -11,4 +11,9 @@ urlpatterns = [
         views.tower_fires_geojson,
         name="tower-fires-geojson",
     ),
+    path(
+        "api/towers/<int:tower_id>/risk.json",
+        views.tower_risk,
+        name="tower-risk",
+    ),
 ]

@@ -16,8 +16,10 @@ import {
   API,
   type FireCollection,
   type FireProps,
+  type RiskLevel,
   type TowerCollection,
   type TowerProps,
+  type TowerRiskDetail,
 } from "@/lib/types";
 
 // MapLibre source/layer ids.
@@ -31,20 +33,45 @@ const FIRE_CIRCLE = "fire-circle";
 const VIEWSHED = "#238b45";
 const CIRCLE = "#2b8cbe";
 
+// Fire-risk ramp, low → extreme. Ordered for the legend scale.
+const RISK_LEVELS: RiskLevel[] = ["low", "moderate", "high", "very_high", "extreme"];
+const RISK_COLORS: Record<RiskLevel, string> = {
+  low: "#2b9348",
+  moderate: "#f9c74f",
+  high: "#f3722c",
+  very_high: "#e63946",
+  extreme: "#9d0208",
+};
+const RISK_LABELS: Record<RiskLevel, string> = {
+  low: "Low",
+  moderate: "Moderate",
+  high: "High",
+  very_high: "Very high",
+  extreme: "Extreme",
+};
+// No assessment yet (compute_fire_risk hasn't run): neutral slate marker.
+const RISK_UNKNOWN = "#475569";
+
+function riskColor(level: RiskLevel | null): string {
+  return level ? RISK_COLORS[level] : RISK_UNKNOWN;
+}
+
 // California-ish starting view; fitBounds refines it once towers load.
 const CA_CENTER: [number, number] = [-120.5, 38.5];
 
 type SelectedFire = { lng: number; lat: number; props: FireProps };
 
-/** Fetch a GeoJSON FeatureCollection once and keep it in state. */
-function useGeoJson<T>(url: string): T | null {
+/** Fetch a JSON document once and keep it in state. The shape is the API
+ *  contract (mirrored in lib/types.ts and guaranteed server-side), so we
+ *  annotate the decoded payload as `T` rather than asserting it. */
+function useJson<T>(url: string): T | null {
   const [data, setData] = useState<T | null>(null);
   useEffect(() => {
     let active = true;
     fetch(url)
-      .then((r) => r.json())
+      .then((r): Promise<T> => r.json())
       .then((json) => {
-        if (active) setData(json as T);
+        if (active) setData(json);
       })
       .catch((err) => console.error(`Failed to load ${url}`, err));
     return () => {
@@ -55,8 +82,8 @@ function useGeoJson<T>(url: string): T | null {
 }
 
 export function MapView() {
-  const towers = useGeoJson<TowerCollection>(API.towers);
-  const fires = useGeoJson<FireCollection>(API.fires);
+  const towers = useJson<TowerCollection>(API.towers);
+  const fires = useJson<FireCollection>(API.fires);
   const [selectedFire, setSelectedFire] = useState<SelectedFire | null>(null);
 
   return (
@@ -114,6 +141,23 @@ function MapLegend({ towers }: { towers: TowerCollection | null }) {
           Active fire
         </li>
       </ul>
+      <div className="mt-2 border-t pt-2">
+        <div className="mb-1.5 font-semibold">Fire risk</div>
+        <div className="flex items-center gap-1">
+          {RISK_LEVELS.map((level) => (
+            <span
+              key={level}
+              title={RISK_LABELS[level]}
+              className="size-3 rounded-full border border-white/60"
+              style={{ backgroundColor: RISK_COLORS[level] }}
+            />
+          ))}
+        </div>
+        <div className="text-muted-foreground mt-1 flex justify-between text-[10px]">
+          <span>Low</span>
+          <span>Extreme</span>
+        </div>
+      </div>
     </div>
   );
 }
@@ -246,7 +290,10 @@ function TowerMarkers({ towers }: { towers: TowerCollection }) {
         return (
           <MapMarker key={f.properties.id} longitude={lng} latitude={lat}>
             <MarkerContent>
-              <div className="flex size-7 items-center justify-center rounded-full border-2 border-white bg-slate-800 text-white shadow-md">
+              <div
+                className="flex size-7 items-center justify-center rounded-full border-2 border-white text-white shadow-md"
+                style={{ backgroundColor: riskColor(f.properties.risk_level) }}
+              >
                 <TowerControl className="size-4" />
               </div>
             </MarkerContent>
@@ -271,6 +318,78 @@ function TowerPopup({ props }: { props: TowerProps }) {
       <div className="text-muted-foreground">Elevation: {props.elevation_m} m</div>
       <div className="text-muted-foreground">Coverage: {coverage}</div>
       <div className="font-medium">Fires in range: {props.fire_count}</div>
+      <TowerRiskPanel towerId={props.id} />
+    </div>
+  );
+}
+
+/** Lazy-loaded fire-risk breakdown for a tower: the latest score/level plus the
+ *  contributing FWI-system factors, and a small recent-days trend. Fetched only
+ *  when the popup opens. */
+function TowerRiskPanel({ towerId }: { towerId: number }) {
+  const detail = useJson<TowerRiskDetail>(API.towerRisk(towerId));
+  if (!detail) return <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">Loading risk…</div>;
+
+  const latest = detail.series[0];
+  if (!latest) {
+    return (
+      <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">
+        No risk computed yet.
+      </div>
+    );
+  }
+
+  const recent = detail.series.slice(0, 7).reverse(); // oldest → newest
+  const factors: [string, number][] = [
+    ["FFMC", latest.ffmc],
+    ["DMC", latest.dmc],
+    ["DC", latest.dc],
+    ["ISI", latest.isi],
+    ["BUI", latest.bui],
+    ["FWI", latest.fwi],
+  ];
+
+  return (
+    <div className="mt-2 border-t pt-2">
+      <div className="flex items-center justify-between">
+        <span className="font-semibold">Fire risk</span>
+        <span
+          className="rounded px-1.5 py-0.5 text-xs font-semibold text-white"
+          style={{ backgroundColor: RISK_COLORS[latest.risk_level] }}
+        >
+          {RISK_LABELS[latest.risk_level]}
+        </span>
+      </div>
+      <div className="text-muted-foreground mt-0.5 text-xs">
+        Score {Math.round(latest.risk_score)}/100 · {latest.date}
+        {latest.snow_covered ? " · snow-covered" : ""}
+      </div>
+
+      <div className="mt-1.5 grid grid-cols-3 gap-x-2 gap-y-0.5 text-xs">
+        {factors.map(([label, value]) => (
+          <div key={label} className="flex justify-between gap-1">
+            <span className="text-muted-foreground">{label}</span>
+            <span className="font-medium">{value.toFixed(1)}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="mt-2">
+        <div className="text-muted-foreground mb-0.5 text-[10px]">Last {recent.length} days</div>
+        <div className="flex items-end gap-0.5" style={{ height: 24 }}>
+          {recent.map((d) => (
+            <span
+              key={d.date}
+              title={`${d.date}: ${RISK_LABELS[d.risk_level]} (${Math.round(d.risk_score)})`}
+              className="flex-1 rounded-sm"
+              style={{
+                backgroundColor: RISK_COLORS[d.risk_level],
+                height: `${Math.max(10, d.risk_score)}%`,
+              }}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,7 +1,7 @@
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 
-from towers.models import WatchtowerSite
+from towers.models import FuelType, WatchtowerSite
 
 # Naive coverage radius for the seeded lookouts. A staffed lookout on a high
 # peak can realistically spot a smoke column tens of km out, so 50 km is a more
@@ -11,13 +11,14 @@ DEFAULT_COVERAGE_KM = 50.0
 
 # Five real California fire lookouts. Coordinates and elevations are approximate
 # (sourced from public lookout listings) — good enough for a demo map. lon/lat
-# order matters: PostGIS/GeoJSON are (x=lon, y=lat).
+# order matters: PostGIS/GeoJSON are (x=lon, y=lat). fuel_type is a coarse take
+# on the dominant surrounding vegetation; it scales each tower's fire-weather risk.
 SEED_TOWERS = [
-    {"name": "Sierra Buttes Lookout", "lon": -120.6417, "lat": 39.5953, "elevation_m": 2616},
-    {"name": "Banner Mountain Lookout", "lon": -120.9840, "lat": 39.2360, "elevation_m": 824},
-    {"name": "Mount Harkness Lookout", "lon": -121.2336, "lat": 40.4097, "elevation_m": 2553},
-    {"name": "Boucher Hill Lookout", "lon": -116.9014, "lat": 33.3491, "elevation_m": 1660},
-    {"name": "High Point Lookout", "lon": -116.8290, "lat": 33.3262, "elevation_m": 1853},
+    {"name": "Sierra Buttes Lookout", "lon": -120.6417, "lat": 39.5953, "elevation_m": 2616, "fuel_type": FuelType.CONIFER},
+    {"name": "Banner Mountain Lookout", "lon": -120.9840, "lat": 39.2360, "elevation_m": 824, "fuel_type": FuelType.MIXED},
+    {"name": "Mount Harkness Lookout", "lon": -121.2336, "lat": 40.4097, "elevation_m": 2553, "fuel_type": FuelType.CONIFER},
+    {"name": "Boucher Hill Lookout", "lon": -116.9014, "lat": 33.3491, "elevation_m": 1660, "fuel_type": FuelType.SHRUB},
+    {"name": "High Point Lookout", "lon": -116.8290, "lat": 33.3262, "elevation_m": 1853, "fuel_type": FuelType.SHRUB},
 ]
 
 
@@ -35,6 +36,7 @@ class Command(BaseCommand):
                     "location": Point(tower["lon"], tower["lat"], srid=4326),
                     "elevation_m": tower["elevation_m"],
                     "coverage_radius_km": DEFAULT_COVERAGE_KM,
+                    "fuel_type": tower["fuel_type"],
                 },
             )
             created += was_created

@@ -5,10 +5,20 @@
 export const API = {
   towers: "/api/towers.geojson",
   fires: "/api/fires.geojson",
+  /** Per-tower fire-risk detail (series + contributing FWI factors). */
+  towerRisk: (id: number) => `/api/towers/${id}/risk.json`,
 } as const;
 
 /** "viewshed" = terrain line-of-sight polygon; "circle" = naive radius buffer. */
 export type CoverageKind = "viewshed" | "circle";
+
+/** Canadian FWI danger classes, low → extreme (towers/models.py RiskLevel). */
+export type RiskLevel =
+  | "low"
+  | "moderate"
+  | "high"
+  | "very_high"
+  | "extreme";
 
 export interface TowerProps {
   id: number;
@@ -17,8 +27,31 @@ export interface TowerProps {
   coverage_radius_km: number;
   fire_count: number;
   coverage_kind: CoverageKind;
+  /** Latest fire-risk rating; null until compute_fire_risk has run. */
+  risk_level: RiskLevel | null;
+  risk_score: number | null;
+  risk_date: string | null;
   /** The coverage polygon, embedded by the API so the map can draw it. */
   coverage: GeoJSON.Polygon | GeoJSON.MultiPolygon | null;
+}
+
+/** One day of the per-tower risk series (towers/views.py tower_risk). */
+export interface RiskDay {
+  date: string;
+  risk_level: RiskLevel;
+  risk_score: number;
+  fwi: number;
+  ffmc: number;
+  dmc: number;
+  dc: number;
+  isi: number;
+  bui: number;
+  snow_covered: boolean;
+}
+
+export interface TowerRiskDetail {
+  tower: { id: number; name: string; fuel_type: string };
+  series: RiskDay[];
 }
 
 export interface FireProps {
