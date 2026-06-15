@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 A GeoDjango + PostGIS web map of wildfire lookout towers that answers **"which
 active fires can each tower currently see?"** using live NASA FIRMS satellite
-data. A learning/portfolio project built in phases — see `watchtower-plan.md`
-for the roadmap and `README.md` for the full setup narrative.
+data. A learning/portfolio project built in phases — see `README.md` for the
+full setup narrative.
 
 ## Architecture
 

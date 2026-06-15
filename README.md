@@ -5,9 +5,9 @@ question: **which active fires can each tower currently see?** Fire data is live
 from NASA FIRMS (VIIRS); "can see" is modelled either as a flat coverage radius
 or, with terrain factored in, a real line-of-sight viewshed.
 
-A learning/portfolio project for geospatial data engineering, built in phases
-(see [`watchtower-plan.md`](watchtower-plan.md)). **Status:** Phase 3 — terrain
-viewsheds.
+A learning/portfolio project for geospatial data engineering, built in phases.
+**Status:** Phase 5 — FWI fire-weather risk plus an ML ignition-probability
+prediction layer.
 
 ## How it works
 
