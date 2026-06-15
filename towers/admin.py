@@ -4,6 +4,7 @@ from django.contrib.gis.admin import GISModelAdmin
 from .models import (
     FireDetection,
     FireRiskAssessment,
+    IgnitionPrediction,
     WatchtowerSite,
     WeatherObservation,
 )
@@ -35,4 +36,11 @@ class WeatherObservationAdmin(admin.ModelAdmin):
 class FireRiskAssessmentAdmin(admin.ModelAdmin):
     list_display = ("tower", "date", "risk_level", "risk_score", "fwi", "snow_covered")
     list_filter = ("risk_level", "tower", "snow_covered")
+    date_hierarchy = "date"
+
+
+@admin.register(IgnitionPrediction)
+class IgnitionPredictionAdmin(admin.ModelAdmin):
+    list_display = ("tower", "date", "probability", "horizon_days", "model_version")
+    list_filter = ("tower", "model_version", "horizon_days")
     date_hierarchy = "date"

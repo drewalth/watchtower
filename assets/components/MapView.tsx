@@ -16,6 +16,7 @@ import {
   API,
   type FireCollection,
   type FireProps,
+  type PredictionSummary,
   type RiskLevel,
   type TowerCollection,
   type TowerProps,
@@ -374,6 +375,8 @@ function TowerRiskPanel({ towerId }: { towerId: number }) {
         ))}
       </div>
 
+      <ModelPrediction prediction={detail.prediction} />
+
       <div className="mt-2">
         <div className="text-muted-foreground mb-0.5 text-[10px]">Last {recent.length} days</div>
         <div className="flex items-end gap-0.5" style={{ height: 24 }}>
@@ -390,6 +393,28 @@ function TowerRiskPanel({ towerId }: { towerId: number }) {
           ))}
         </div>
       </div>
+    </div>
+  );
+}
+
+/** The ML ignition probability beside the FWI rating — "Model: 18% / 3-day".
+ *  Framed as a comparison: the deterministic index vs. what the model learned
+ *  from history. Null (no trained model yet) shows a quiet placeholder. */
+function ModelPrediction({ prediction }: { prediction: PredictionSummary }) {
+  const { ignition_probability, horizon_days } = prediction;
+  if (ignition_probability === null || horizon_days === null) {
+    return (
+      <div className="text-muted-foreground mt-1.5 text-[10px]">
+        Model: not trained yet
+      </div>
+    );
+  }
+  return (
+    <div className="mt-1.5 flex items-center justify-between text-xs">
+      <span className="text-muted-foreground">Model ignition</span>
+      <span className="font-semibold">
+        {Math.round(ignition_probability * 100)}% / {horizon_days}-day
+      </span>
     </div>
   );
 }

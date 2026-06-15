@@ -97,6 +97,11 @@ class WatchtowerSite(models.Model):
         """Most recent FireRiskAssessment for this tower, or None if none yet."""
         return self.risk_assessments.order_by("-date").first()
 
+    @property
+    def latest_prediction(self):
+        """Most recent ML IgnitionPrediction for this tower, or None if none yet."""
+        return self.predictions.order_by("-date", "-created_at").first()
+
     def fires_in_range(self, since=None):
         """FireDetections this tower can see: inside the viewshed polygon if one
         is computed, else within the radius. ``distance_lte`` uses 'spheroid' to
@@ -185,3 +190,36 @@ class FireRiskAssessment(models.Model):
 
     def __str__(self):
         return f"{self.tower.name} risk {self.date}: {self.risk_level}"
+
+
+class IgnitionPrediction(models.Model):
+    """One ML-predicted ignition probability for a tower-day (Phase 5).
+
+    Kept in its own table — decoupled from the deterministic FireRiskAssessment,
+    independently re-runnable, and explicit about provenance via ``model_version``.
+    The probability answers: given conditions known on ``date``, how likely is at
+    least one FIRMS detection inside this tower's coverage within ``horizon_days``?
+    """
+
+    tower = models.ForeignKey(
+        WatchtowerSite, on_delete=models.CASCADE, related_name="predictions"
+    )
+    date = models.DateField(help_text="Day the prediction was made for (its 'as of').")
+    probability = models.FloatField(help_text="Calibrated P(ignition) in [0, 1].")
+    horizon_days = models.IntegerField(
+        help_text="Forecast window: a fire within (date, date + horizon_days]."
+    )
+    model_version = models.CharField(
+        max_length=64, help_text="Identifies the trained artifact behind this value."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["tower", "-date"]
+        unique_together = ("tower", "date", "model_version")
+
+    def __str__(self):
+        return (
+            f"{self.tower.name} P(ignition)={self.probability:.2f} "
+            f"@ {self.date} ({self.horizon_days}d, {self.model_version})"
+        )

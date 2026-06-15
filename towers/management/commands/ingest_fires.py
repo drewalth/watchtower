@@ -1,5 +1,5 @@
 import io
-from datetime import datetime, timezone
+from datetime import date, datetime, timedelta, timezone
 from functools import reduce
 
 import pandas as pd
@@ -12,7 +12,8 @@ from pydantic import ValidationError
 from towers.models import FireDetection, WatchtowerSite
 from towers.schemas import FirmsRow
 
-# FIRMS "area" endpoint: CSV detections within a bbox over the last N days.
+# FIRMS "area" endpoint: CSV detections within a bbox. The day-range suffix is
+# "last N days"; appending a start date instead returns N days *from* that date.
 FIRMS_URL = (
     "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
     "{key}/{source}/{bbox}/{day_range}"
@@ -26,6 +27,18 @@ DEFAULT_SOURCES = [
     "VIIRS_NOAA21_NRT",
 ]
 
+# NRT sensors only retain ~2 months; the standard-processing archive sources
+# cover older seasons, so a dated backfill (--start/--end) defaults to these.
+DEFAULT_ARCHIVE_SOURCES = [
+    "VIIRS_SNPP_SP",
+    "VIIRS_NOAA20_SP",
+]
+
+# FIRMS caps a single area request by bbox-area × days (not just a 10-day max):
+# over the towers' envelope, 10-day windows 400 but 5-day windows succeed, so a
+# long backfill is chunked into 5-day windows to stay under the limit.
+MAX_WINDOW_DAYS = 5
+
 
 class Command(BaseCommand):
     help = (
@@ -37,13 +50,25 @@ class Command(BaseCommand):
     def add_arguments(self, parser):
         parser.add_argument(
             "--day-range", type=int, default=1,
-            help="How many days back to fetch (1-10). Default 1.",
+            help="How many days back to fetch (1-10). Default 1. Ignored in "
+                 "backfill mode (--start/--end).",
         )
         parser.add_argument(
-            "--source", nargs="+", default=DEFAULT_SOURCES,
+            "--start", type=date.fromisoformat, default=None,
+            help="Backfill start date, inclusive (YYYY-MM-DD). Requires --end; "
+                 "switches to the archive sources and chunks the range.",
+        )
+        parser.add_argument(
+            "--end", type=date.fromisoformat, default=None,
+            help="Backfill end date, inclusive (YYYY-MM-DD). Requires --start.",
+        )
+        parser.add_argument(
+            "--source", nargs="+", default=None,
             help=(
-                "FIRMS source/sensor(s) to pull, space-separated. "
-                f"Default: {' '.join(DEFAULT_SOURCES)}."
+                "FIRMS source/sensor(s) to pull, space-separated. Defaults to "
+                f"the NRT sensors ({', '.join(DEFAULT_SOURCES)}); in backfill "
+                f"mode defaults to the archive sources "
+                f"({', '.join(DEFAULT_ARCHIVE_SOURCES)})."
             ),
         )
 
@@ -56,10 +81,19 @@ class Command(BaseCommand):
                 "and add it to your .env as FIRMS_MAP_KEY=..."
             )
 
-        day_range = options["day_range"]
-        if not 1 <= day_range <= 10:
-            raise CommandError("--day-range must be between 1 and 10.")
-        sources = options["source"]
+        start, end = options["start"], options["end"]
+        backfill = start is not None or end is not None
+        if backfill:
+            if start is None or end is None:
+                raise CommandError("--start and --end must be given together.")
+            if start > end:
+                raise CommandError("--start must be on or before --end.")
+            sources = options["source"] or DEFAULT_ARCHIVE_SOURCES
+        else:
+            day_range = options["day_range"]
+            if not 1 <= day_range <= 10:
+                raise CommandError("--day-range must be between 1 and 10.")
+            sources = options["source"] or DEFAULT_SOURCES
 
         # The query area is source-independent, so compute it once up front.
         bbox = self._bbox()
@@ -73,7 +107,10 @@ class Command(BaseCommand):
         failures = []
         for source in sources:
             try:
-                counts = self._ingest_source(key, source, bbox, day_range)
+                if backfill:
+                    counts = self._ingest_range(key, source, bbox, start, end)
+                else:
+                    counts = self._ingest_source(key, source, bbox, day_range)
             except (CommandError, requests.RequestException) as exc:
                 # Isolate per-source failures: a throttled/erroring sensor must
                 # not lose the detections the other sensors returned. Redact the
@@ -109,8 +146,48 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(summary))
 
     def _ingest_source(self, key, source, bbox, day_range):
-        """Fetch + upsert one FIRMS source. Returns a counts dict; raises
-        CommandError on a fetch/parse failure so the caller can isolate it."""
+        """Fetch + upsert one FIRMS source over the last ``day_range`` days."""
+        return self._fetch_and_upsert(key, source, bbox, day_range, start_date=None)
+
+    def _ingest_range(self, key, source, bbox, start, end):
+        """Backfill one source across ``start..end``, chunked to FIRMS' 10-day cap.
+
+        Windows are isolated: a single window that 400s (a common archive
+        hiccup) is logged and skipped rather than losing the whole season. The
+        source only counts as failed if *every* window fails.
+        """
+        totals = {"fetched": 0, "created": 0, "updated": 0, "skipped": 0}
+        windows = window_failures = 0
+        cursor = start
+        while cursor <= end:
+            span = min(MAX_WINDOW_DAYS, (end - cursor).days + 1)
+            windows += 1
+            try:
+                counts = self._fetch_and_upsert(key, source, bbox, span, cursor)
+            except (CommandError, requests.RequestException) as exc:
+                message = str(exc).replace(key, "***")
+                self.stderr.write(self.style.WARNING(
+                    f"    {source} {cursor}..+{span}d: skipped — {message}"
+                ))
+                window_failures += 1
+            else:
+                for field, value in counts.items():
+                    totals[field] += value
+            cursor += timedelta(days=span)
+
+        if window_failures == windows:
+            raise CommandError(
+                f"all {windows} window(s) failed for {source}"
+            )
+        return totals
+
+    def _fetch_and_upsert(self, key, source, bbox, day_range, start_date):
+        """Fetch + upsert one FIRMS request. Returns a counts dict; raises
+        CommandError on a fetch/parse failure so the caller can isolate it.
+
+        ``start_date`` None → "last ``day_range`` days"; a date → ``day_range``
+        days from that date (the archive/backfill form).
+        """
         west, south, east, north = bbox
         url = FIRMS_URL.format(
             key=key,
@@ -118,11 +195,17 @@ class Command(BaseCommand):
             bbox=f"{west},{south},{east},{north}",
             day_range=day_range,
         )
+        if start_date is not None:
+            url = f"{url}/{start_date.isoformat()}"
         # NB: don't log `url` — it embeds the secret MAP_KEY.
+        window = (
+            f"from {start_date} over {day_range} day(s)"
+            if start_date is not None
+            else f"over the last {day_range} day(s)"
+        )
         self.stdout.write(
             f"Fetching {source} fires for bbox "
-            f"({west:.3f}, {south:.3f}, {east:.3f}, {north:.3f}) "
-            f"over {day_range} day(s)…"
+            f"({west:.3f}, {south:.3f}, {east:.3f}, {north:.3f}) {window}…"
         )
 
         try:

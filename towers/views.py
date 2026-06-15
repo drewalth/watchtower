@@ -34,6 +34,8 @@ def towers_geojson(request):
                 "coverage_kind": site.coverage_kind,
                 # Latest fire-risk rating (None until compute_fire_risk has run).
                 **_risk_summary(site.latest_risk),
+                # Latest ML ignition probability (None until a model is trained).
+                **_prediction_summary(site.latest_prediction),
                 # GEOSGeometry.geojson is a string; parse so it nests as JSON.
                 "coverage": json.loads(site.coverage_area().geojson),
             },
@@ -51,6 +53,21 @@ def _risk_summary(assessment):
         "risk_level": assessment.risk_level,
         "risk_score": assessment.risk_score,
         "risk_date": assessment.date.isoformat(),
+    }
+
+
+def _prediction_summary(prediction):
+    """Compact latest ML-prediction fields for the towers feed (null-safe)."""
+    if prediction is None:
+        return {
+            "ignition_probability": None,
+            "horizon_days": None,
+            "model_version": None,
+        }
+    return {
+        "ignition_probability": prediction.probability,
+        "horizon_days": prediction.horizon_days,
+        "model_version": prediction.model_version,
     }
 
 
@@ -95,6 +112,8 @@ def tower_risk(request, tower_id):
                 "name": tower.name,
                 "fuel_type": tower.fuel_type,
             },
+            # Latest ML ignition probability beside the FWI series (null-safe).
+            "prediction": _prediction_summary(tower.latest_prediction),
             "series": series,
         }
     )

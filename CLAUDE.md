@@ -23,6 +23,22 @@ single `towers` app.
     reports which is active.
   - `FireDetection` is one VIIRS satellite hit, deduped on a stable
     `external_uid` (lat/lon/time/source) so re-ingesting is idempotent.
+  - `WeatherObservation` (Phase 4) is one tower-day of the FWI noon inputs;
+    `FireRiskAssessment` is the computed FWI-system codes + a 0–100 risk
+    rating per tower-day; `IgnitionPrediction` (Phase 5) is one ML
+    ignition-probability per tower-day, tagged with its `model_version`.
+    `WatchtowerSite.latest_risk` / `latest_prediction` fetch the newest of each.
+- **`towers/fire_weather.py`** (Phase 4) — pure Canadian FWI System math
+  (FFMC/DMC/DC/ISI/BUI/FWI, snow over-wintering, `to_risk`), no Django/DB —
+  validated against the van Wagner & Pickett (1985) reference vector.
+- **`towers/schemas.py`** — Pydantic boundary validating third-party payloads
+  (`OpenMeteoResponse`, `FirmsRow`) *before* anything reaches the DB.
+- **`towers/ml/`** (Phase 5) — ignition-probability model. `dataset.py` (pure
+  feature/label assembly, leakage-safe: features use only days ≤ t, label is a
+  fire in `(t, t+H]`) and `model.py` (pure sklearn `Pipeline` wrapper) stay
+  framework-free and unit-tested; `django_data.py` is the one DB-aware bridge
+  joining `WeatherObservation` + `FireRiskAssessment` and deriving the fire
+  calendar from `fires_in_range`.
 - **`towers/viewshed.py`** — Phase 3 terrain line-of-sight. Reads Copernicus
   GLO-30 DEM tiles straight from AWS over HTTP (`/vsicurl/`, no download/creds),
   mosaics + reprojects to UTM with `gdalwarp`, runs `gdal_viewshed`, then
@@ -30,9 +46,11 @@ single `towers` app.
   the GDAL CLI** (`gdalbuildvrt`/`gdalwarp`/`gdal_viewshed`) — only available
   inside the Docker image.
 - **`towers/views.py` + `towers/urls.py`** — thin GeoJSON API
-  (`/api/towers.geojson`, `/api/fires.geojson`, `/api/towers/<id>/fires.geojson`)
-  plus `/` which renders `templates/towers/map.html`. Views serialize models to
-  GeoJSON by hand; coordinates are always `[lon, lat]`.
+  (`/api/towers.geojson`, `/api/fires.geojson`, `/api/towers/<id>/fires.geojson`,
+  `/api/towers/<id>/risk.json`) plus `/` which renders
+  `templates/towers/map.html`. Tower features carry the latest risk rating + ML
+  ignition probability (both null-safe). Views serialize models to GeoJSON by
+  hand; coordinates are always `[lon, lat]`.
 - **Frontend (`assets/`)** — React + TypeScript + Vite app (MapLibre via
   [mapcn](https://www.mapcn.dev)) wired into Django by **django-vite**. Entry is
   `assets/main.tsx`; map logic in `assets/components/MapView.tsx`; vendored mapcn
@@ -40,8 +58,16 @@ single `towers` app.
 - **Management commands** (`towers/management/commands/`) — the ETL.
   `seed_towers` (5 real CA lookouts), `ingest_fires` (FIRMS CSV → DB; pulls
   all three VIIRS NRT sensors — NOAA-20/SNPP/NOAA-21 — by default, isolating
-  each so one failing sensor doesn't lose the others), `compute_viewsheds`
-  (DEM → stored polygons). All idempotent via `update_or_create`.
+  each so one failing sensor doesn't lose the others; `--start/--end` switches
+  to the standard-processing **archive** sources, chunked into 5-day windows),
+  `compute_viewsheds` (DEM → stored polygons). Phase 4: `ingest_weather`
+  (Open-Meteo forecast → `WeatherObservation`), `compute_fire_risk`
+  (`WeatherObservation` → FWI codes → `FireRiskAssessment`, walked forward since
+  the moisture codes are recursive). Phase 5: `backfill_weather` (Open-Meteo
+  **archive** for history), `train_fire_model` (assemble → temporal split → fit
+  + FWI-only baseline → joblib artifact + metrics JSON in git-ignored `models/`),
+  `predict_ignition` (artifact → `IgnitionPrediction` per tower; no-op until a
+  model is trained). All idempotent via `update_or_create`.
 
 ### Critical spatial convention
 
@@ -64,6 +90,15 @@ docker compose exec web python manage.py migrate   # PostGIS + schema
 docker compose exec web python manage.py seed_towers
 docker compose exec web python manage.py ingest_fires --day-range 3   # needs FIRMS_MAP_KEY in .env
 docker compose exec web python manage.py compute_viewsheds            # ~1 min/tower
+docker compose exec web python manage.py ingest_weather --day-range 7 # Phase 4: weather (no key)
+docker compose exec web python manage.py compute_fire_risk            # Phase 4: FWI risk per tower
+
+# Phase 5 — ML ignition prediction (one-time backfill, then train + predict)
+docker compose exec web python manage.py backfill_weather --start 2024-05-01 --end 2025-11-01
+docker compose exec web python manage.py ingest_fires --start 2024-05-01 --end 2025-11-01  # archive
+docker compose exec web python manage.py compute_fire_risk           # FWI codes over the backfill
+docker compose exec web python manage.py train_fire_model            # artifact + metrics JSON
+docker compose exec web python manage.py predict_ignition            # IgnitionPrediction per tower
 
 # Tests (pytest-django; spatial tests need the PostGIS DB → run in the container)
 docker compose exec web pytest
@@ -79,10 +114,12 @@ npm run build                 # hashed bundle + manifest into static/ (for DEBUG
 ```
 
 `docker compose up` also starts a **`scheduler`** sidecar (reuses the `web`
-image) that runs `ingest_fires --day-range 2` **hourly** to keep fire data
-fresh (all three VIIRS NRT sensors) — it does one pass immediately on start,
-then loops every hour. Manual
-`ingest_fires` runs are still fine (idempotent). Watch it with
+image) that **hourly** runs `ingest_fires --day-range 2` → `ingest_weather` →
+`compute_fire_risk` → `predict_ignition` (each `|| true` so one failure never
+kills the loop) to keep fire, weather, risk, and ML prediction data fresh — it
+does one pass immediately on start, then loops every hour. `train_fire_model` is
+**not** in the loop (a manual/occasional step); `predict_ignition` no-ops until
+an artifact exists. Manual runs are still fine (idempotent). Watch it with
 `docker compose logs -f scheduler`; it needs `FIRMS_MAP_KEY` set and the towers
 seeded, and logs-and-retries if either is missing.
 

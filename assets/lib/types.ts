@@ -20,7 +20,14 @@ export type RiskLevel =
   | "very_high"
   | "extreme";
 
-export interface TowerProps {
+/** Latest ML ignition prediction; every field null until a model is trained. */
+export interface PredictionSummary {
+  ignition_probability: number | null;
+  horizon_days: number | null;
+  model_version: string | null;
+}
+
+export interface TowerProps extends PredictionSummary {
   id: number;
   name: string;
   elevation_m: number;
@@ -51,6 +58,8 @@ export interface RiskDay {
 
 export interface TowerRiskDetail {
   tower: { id: number; name: string; fuel_type: string };
+  /** Latest ML ignition probability beside the FWI series (null-safe). */
+  prediction: PredictionSummary;
   series: RiskDay[];
 }
 

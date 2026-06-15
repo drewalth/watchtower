@@ -52,6 +52,7 @@ services:
   #   • ingest_fires --day-range 2 : rolling 48h FIRMS window
   #   • ingest_weather             : daily FWI inputs per tower (Open-Meteo)
   #   • compute_fire_risk          : recompute risk from the freshest weather
+  #   • predict_ignition           : ML probability (no-op until a model exists)
   scheduler:
     build: .
     command: >
@@ -59,6 +60,7 @@ services:
         python manage.py ingest_fires --day-range 2 || true;
         python manage.py ingest_weather || true;
         python manage.py compute_fire_risk || true;
+        python manage.py predict_ignition || true;
         sleep 3600;
       done'
     volumes:
