@@ -13,6 +13,8 @@ export const API = {
   riskTimeseries: "/api/risk/timeseries.json",
   /** Per-tower fire-risk detail (series + contributing FWI factors). */
   towerRisk: (id: number) => `/api/towers/${id}/risk.json`,
+  /** Latest data-refresh run state, polled to drive the ingestion toast. */
+  ingestionStatus: "/api/ingestion/status.json",
 } as const;
 
 /** Build the filtered fires URL for an inclusive date window (+ optional source). */
@@ -124,6 +126,21 @@ export interface TowerRiskDetail {
   /** Latest ML ignition probability beside the FWI series (null-safe). */
   prediction: PredictionSummary;
   series: RiskDay[];
+}
+
+/** A data-refresh cycle's state (towers/views.py ingestion_status). */
+export type IngestionRunStatus = "running" | "completed" | "failed";
+
+export interface IngestionRun {
+  id: number;
+  status: IngestionRunStatus;
+  started_at: string;
+  finished_at: string | null;
+}
+
+export interface IngestionStatus {
+  /** The latest run, or null until the first cycle has run. */
+  run: IngestionRun | null;
 }
 
 export interface FireProps {

@@ -194,6 +194,36 @@ class FireRiskAssessment(models.Model):
         return f"{self.tower.name} risk {self.date}: {self.risk_level}"
 
 
+class IngestionRun(models.Model):
+    """One execution of the hourly data-refresh cycle (run_ingest_cycle).
+
+    The ``web`` and ``scheduler`` containers share only the database, so this row
+    is how the scheduler tells the UI a refresh is happening: it flips to
+    ``running`` at the start and ``completed``/``failed`` at the end, and the
+    frontend polls ``/api/ingestion/status.json`` to drive a progress toast.
+    """
+
+    class Status(models.TextChoices):
+        RUNNING = "running", "Running"
+        COMPLETED = "completed", "Completed"
+        FAILED = "failed", "Failed"
+
+    started_at = models.DateTimeField(auto_now_add=True)
+    finished_at = models.DateTimeField(null=True, blank=True)
+    status = models.CharField(
+        max_length=16, choices=Status.choices, default=Status.RUNNING
+    )
+    detail = models.TextField(
+        blank=True, default="", help_text="Per-step ok/failed summary for debugging."
+    )
+
+    class Meta:
+        ordering = ["-started_at"]
+
+    def __str__(self):
+        return f"IngestionRun {self.pk} ({self.status}) @ {self.started_at:%Y-%m-%d %H:%M}"
+
+
 class IgnitionPrediction(models.Model):
     """One ML-predicted ignition probability for a tower-day (Phase 5).
 

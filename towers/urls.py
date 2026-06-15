@@ -9,6 +9,7 @@ urlpatterns = [
     path("api/fires/timeseries.json", views.fires_timeseries, name="fires-timeseries"),
     path("api/fires/stats.json", views.fires_stats, name="fires-stats"),
     path("api/risk/timeseries.json", views.risk_timeseries, name="risk-timeseries"),
+    path("api/ingestion/status.json", views.ingestion_status, name="ingestion-status"),
     path(
         "api/towers/<int:tower_id>/fires.geojson",
         views.tower_fires_geojson,

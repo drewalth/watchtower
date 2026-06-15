@@ -60,6 +60,8 @@ interface AppActions {
   initialize: () => void;
   /** Re-run any map-critical fetch that previously failed. */
   retry: () => void;
+  /** Re-fetch all data in place (keeping the current window) after an ingest. */
+  refresh: () => void;
   /** Latch `mapReady` once the MapLibre map reports fully loaded. */
   setMapReady: () => void;
   setPreset: (preset: PresetKey) => void;
@@ -156,6 +158,20 @@ export const useAppStore = create<AppStore>()(
           }),
       );
 
+    /** Refresh just the timeseries Loadable in place — used by `refresh()`,
+     *  which must keep the user's current window (unlike the init chain below
+     *  that derives a fresh default window from it). */
+    const loadTimeseries = () =>
+      runLoad<FireTimeseries>(
+        "timeseries",
+        API.firesTimeseries,
+        () => get().timeseries,
+        (n) =>
+          set((s) => {
+            s.timeseries = n;
+          }),
+      );
+
     /** Load the timeseries, derive the default window from its date range, then
      *  fetch the window-scoped fires + stats. Collapses the old two-wave
      *  waterfall into one orchestrated chain. */
@@ -222,6 +238,21 @@ export const useAppStore = create<AppStore>()(
           const window = s.timeWindow;
           if (isFailed(s.fires)) void loadFires(window).then(maybeMarkReady);
           if (isFailed(s.stats)) void loadStats(window);
+        }
+      },
+
+      refresh: () => {
+        // Re-fetch in place after a data ingest. Loaded fields transition to
+        // `reloading` (not `loading`) and `ready` is already latched, so the map
+        // updates without bouncing back to the init screen. Keep the user's
+        // current window — don't re-derive a default one.
+        void loadTowers();
+        void loadRisk();
+        void loadTimeseries();
+        const window = get().timeWindow;
+        if (window) {
+          void loadFires(window);
+          void loadStats(window);
         }
       },
 

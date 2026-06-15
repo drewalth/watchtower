@@ -10,6 +10,7 @@ from .models import (
     FireDetection,
     FireRiskAssessment,
     IgnitionPrediction,
+    IngestionRun,
     WatchtowerSite,
 )
 
@@ -254,6 +255,29 @@ def tower_risk(request, tower_id):
             # Latest ML ignition probability beside the FWI series (null-safe).
             "prediction": _prediction_summary(tower.latest_prediction),
             "series": series,
+        }
+    )
+
+
+def ingestion_status(request):
+    """Latest data-refresh run, for the UI's progress toast.
+
+    Returns ``{"run": null}`` until the first cycle has run; otherwise the most
+    recent IngestionRun's id/status/timestamps. The frontend polls this and
+    shows a spinner while ``running``, a "Data refreshed" checkmark on the
+    ``running`` → ``completed`` transition it witnesses.
+    """
+    run = IngestionRun.objects.first()  # Meta.ordering = ["-started_at"]
+    if run is None:
+        return JsonResponse({"run": None})
+    return JsonResponse(
+        {
+            "run": {
+                "id": run.id,
+                "status": run.status,
+                "started_at": run.started_at.isoformat(),
+                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
+            }
         }
     )
 
