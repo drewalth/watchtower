@@ -73,6 +73,7 @@ export function MapView() {
 
   return (
     <Map center={CA_CENTER} zoom={6} className="h-full w-full">
+      <MapReadyReporter />
       <MapControls showZoom showFullscreen />
       <MapLegend towers={towers} />
       {towers && <CoverageLayer towers={towers} />}
@@ -107,6 +108,20 @@ export function MapView() {
       )}
     </Map>
   );
+}
+
+/** Reports map readiness up to the store so AppInitializer can drop the init
+ *  overlay only once the map has fully loaded. Lives inside <Map> because
+ *  `useMap()` isn't reachable from the parent; latches via `setMapReady`. */
+function MapReadyReporter() {
+  const { isLoaded } = useMap();
+  const setMapReady = useAppStore((s) => s.setMapReady);
+
+  useEffect(() => {
+    if (isLoaded) setMapReady();
+  }, [isLoaded, setMapReady]);
+
+  return null;
 }
 
 /** A small overlay key for the map's symbols. Coverage rows show only for the

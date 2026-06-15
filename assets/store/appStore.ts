@@ -45,10 +45,14 @@ interface AppState {
   preset: PresetKey | null;
   selectedFire: SelectedFire | null;
 
-  /** Latched once the map-critical data has loaded — the reveal gate. Never
-   *  flips back, so a later window refetch (fires → `reloading`) can't bounce
-   *  the user back to the init screen. */
+  /** Latched once the map-critical data has loaded — the data half of the
+   *  reveal gate. Never flips back, so a later window refetch (fires →
+   *  `reloading`) can't bounce the user back to the init screen. */
   ready: boolean;
+  /** Latched once the MapLibre map has fully loaded (style + first render) —
+   *  the map half of the reveal gate. Mirrors `ready`; set by a reporter inside
+   *  the map provider since `useMap()` isn't reachable from AppInitializer. */
+  mapReady: boolean;
 }
 
 interface AppActions {
@@ -56,6 +60,8 @@ interface AppActions {
   initialize: () => void;
   /** Re-run any map-critical fetch that previously failed. */
   retry: () => void;
+  /** Latch `mapReady` once the MapLibre map reports fully loaded. */
+  setMapReady: () => void;
   setPreset: (preset: PresetKey) => void;
   setWindow: (window: TimeWindow) => void;
   loadTowerRisk: (id: number) => void;
@@ -196,6 +202,7 @@ export const useAppStore = create<AppStore>()(
       preset: null,
       selectedFire: null,
       ready: false,
+      mapReady: false,
 
       initialize: () => {
         if (didInit) return;
@@ -266,9 +273,19 @@ export const useAppStore = create<AppStore>()(
         set((s) => {
           s.selectedFire = fire;
         }),
+
+      setMapReady: () =>
+        set((s) => {
+          s.mapReady = true;
+        }),
     };
   }),
 );
 
-/** The reveal gate: true once the map-critical data has loaded (latched). */
+/** The data half of the reveal gate: true once the map-critical data has
+ *  loaded (latched). */
 export const selectAppReady = (s: AppStore): boolean => s.ready;
+
+/** The map half of the reveal gate: true once the MapLibre map is fully loaded
+ *  (latched). */
+export const selectMapReady = (s: AppStore): boolean => s.mapReady;
