@@ -68,10 +68,14 @@ single `towers` app.
   stay fast. Data via the shared `lib/useJson.ts` hook; charts use the shadcn
   `card`/`chart` primitives in `components/ui/`.
 - **Management commands** (`towers/management/commands/`) — the ETL.
-  `seed_towers` (5 real CA lookouts), `ingest_fires` (FIRMS CSV → DB; pulls
-  all three VIIRS NRT sensors — NOAA-20/SNPP/NOAA-21 — by default, isolating
-  each so one failing sensor doesn't lose the others; `--start/--end` switches
-  to the standard-processing **archive** sources, chunked into 5-day windows),
+  `seed_towers` (27 real western-US lookouts across CA/CO/WA/OR), `ingest_fires`
+  (FIRMS CSV → DB; pulls all three VIIRS NRT sensors — NOAA-20/SNPP/NOAA-21 — by
+  default, isolating each so one failing sensor doesn't lose the others. Towers
+  are clustered into tight per-region bboxes (`towers/clustering.py`) and queried
+  one bbox at a time — a per-cluster failure is isolated like a per-sensor one,
+  and a sensor only counts as failed if *every* cluster fails; `--start/--end`
+  switches to the standard-processing **archive** sources, chunked into 5-day
+  windows),
   `compute_viewsheds` (DEM → stored polygons). Phase 4: `ingest_weather`
   (Open-Meteo forecast → `WeatherObservation`), `compute_fire_risk`
   (`WeatherObservation` → FWI codes → `FireRiskAssessment`, walked forward since
@@ -158,6 +162,9 @@ docker compose build web    # rebuild image to pick it up
 - Management commands handle FIRMS edge cases gracefully (zero detections,
   non-CSV error responses, missing key) — keep that resilience.
 - FIRMS limits: a large bbox over many days returns HTTP 400; the ingest keeps
-  the bbox tight (union of tower coverage envelopes) and `--day-range` is 1–10.
+  each bbox tight by clustering towers into per-region groups
+  (`towers/clustering.py`, single-linkage on coverage envelopes) and querying one
+  small bbox per cluster, rather than a single continent-spanning envelope.
+  `--day-range` is 1–10.
 - This is a single-user project — auth machinery is intentionally minimal
   (`AUTH_PASSWORD_VALIDATORS = []`); don't add account infrastructure.

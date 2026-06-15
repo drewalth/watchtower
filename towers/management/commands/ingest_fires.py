@@ -1,6 +1,5 @@
 import io
 from datetime import date, datetime, timedelta, timezone
-from functools import reduce
 
 import pandas as pd
 import requests
@@ -9,6 +8,7 @@ from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand, CommandError
 from pydantic import ValidationError
 
+from towers.clustering import cluster_bboxes
 from towers.models import FireDetection, WatchtowerSite
 from towers.schemas import FirmsRow
 
@@ -96,37 +96,56 @@ class Command(BaseCommand):
             sources = options["source"] or DEFAULT_SOURCES
 
         # The query area is source-independent, so compute it once up front.
-        bbox = self._bbox()
-        if bbox is None:
+        # Towers are clustered into tight per-region bboxes (FIRMS caps a request
+        # by bbox-area × days); a single continent-spanning envelope would 400.
+        result = self._bboxes()
+        if result is None:
             raise CommandError(
                 "No towers found — run 'python manage.py seed_towers' first so "
                 "we know which area to query."
             )
+        bboxes, oversized = result
+        for bbox in oversized:
+            self.stderr.write(self.style.WARNING(
+                f"  cluster bbox {bbox} exceeds the FIRMS size budget; it may "
+                "400 — consider tightening CLUSTER_LINK_DEGREES."
+            ))
 
         totals = {"fetched": 0, "created": 0, "updated": 0, "skipped": 0}
         failures = []
         for source in sources:
-            try:
-                if backfill:
-                    counts = self._ingest_range(key, source, bbox, start, end)
-                else:
-                    counts = self._ingest_source(key, source, bbox, day_range)
-            except (CommandError, requests.RequestException) as exc:
-                # Isolate per-source failures: a throttled/erroring sensor must
-                # not lose the detections the other sensors returned. Redact the
-                # key, which requests embeds in its exception text.
-                message = str(exc).replace(key, "***")
-                self.stderr.write(
-                    self.style.WARNING(f"  {source}: skipped — {message}")
-                )
+            # A source is fetched once per cluster bbox. Accumulate its counts
+            # and only mark it failed if *every* cluster fails (symmetric with
+            # the per-window isolation inside _ingest_range).
+            src_counts = {"fetched": 0, "created": 0, "updated": 0, "skipped": 0}
+            cluster_failures = 0
+            for bbox in bboxes:
+                try:
+                    if backfill:
+                        counts = self._ingest_range(key, source, bbox, start, end)
+                    else:
+                        counts = self._ingest_source(key, source, bbox, day_range)
+                except (CommandError, requests.RequestException) as exc:
+                    # Isolate per-cluster failures: a throttled/erroring request
+                    # for one region must not lose the others. Redact the key,
+                    # which requests embeds in its exception text.
+                    message = str(exc).replace(key, "***")
+                    self.stderr.write(self.style.WARNING(
+                        f"  {source} bbox {bbox}: skipped — {message}"
+                    ))
+                    cluster_failures += 1
+                    continue
+                for field, value in counts.items():
+                    src_counts[field] += value
+            if cluster_failures == len(bboxes):
                 failures.append(source)
                 continue
-            for field, value in counts.items():
+            for field, value in src_counts.items():
                 totals[field] += value
             self.stdout.write(
-                f"  {source}: fetched {counts['fetched']}, "
-                f"created {counts['created']}, updated {counts['updated']}, "
-                f"skipped {counts['skipped']}."
+                f"  {source}: fetched {src_counts['fetched']}, "
+                f"created {src_counts['created']}, updated {src_counts['updated']}, "
+                f"skipped {src_counts['skipped']}."
             )
 
         succeeded = len(sources) - len(failures)
@@ -256,18 +275,19 @@ class Command(BaseCommand):
         }
 
     @staticmethod
-    def _bbox():
-        """(west, south, east, north) envelope of all towers' coverage areas."""
+    def _bboxes():
+        """Per-cluster (west, south, east, north) bboxes covering all towers.
+
+        Towers are grouped into spatially-tight clusters so each FIRMS query's
+        bbox stays small (FIRMS caps a request by bbox-area × days); a single
+        continent-spanning envelope would 400. Returns ``None`` if there are no
+        towers, else ``(bboxes, oversized)`` — the cluster bboxes plus any whose
+        span still exceeds the FIRMS budget (the caller warns on those).
+        """
         towers = list(WatchtowerSite.objects.all())
         if not towers:
             return None
-        # Union the coverage polygons, then take the bounding box. Keeping the
-        # bbox tight (towers' envelope, not "the world") respects FIRMS limits.
-        union = reduce(
-            lambda a, b: a.union(b),
-            (tower.coverage_area() for tower in towers),
-        )
-        return union.envelope.extent  # (xmin, ymin, xmax, ymax)
+        return cluster_bboxes([tower.coverage_area() for tower in towers])
 
     @staticmethod
     def _build_fields(row, source):

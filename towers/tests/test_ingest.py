@@ -134,3 +134,82 @@ def test_ingest_errors_when_all_sources_fail(settings, seeded_tower):
             call_command("ingest_fires", source=THREE_SOURCES)
     assert "failed" in str(exc.value).lower()
     assert FireDetection.objects.count() == 0
+
+
+@pytest.fixture
+def two_distant_towers(db):
+    """Two towers far enough apart to land in separate FIRMS clusters."""
+    WatchtowerSite.objects.create(
+        name="California Tower",
+        location=Point(-120.0, 38.0, srid=4326),
+        elevation_m=1000,
+    )
+    WatchtowerSite.objects.create(
+        name="Colorado Tower",
+        location=Point(-106.0, 39.0, srid=4326),
+        elevation_m=1000,
+    )
+
+
+@pytest.mark.django_db
+def test_ingest_splits_into_cluster_bboxes(settings, two_distant_towers):
+    """Dispersed towers fan the query out into one request per cluster bbox."""
+    settings.FIRMS_MAP_KEY = "test-key"
+    responses = [
+        _mock_response(_csv(38.0, -120.0)),
+        _mock_response(_csv(39.0, -106.0)),
+    ]
+    with mock.patch(
+        "towers.management.commands.ingest_fires.requests.get",
+        side_effect=responses,
+    ) as get:
+        # One source, two clusters → two requests.
+        call_command("ingest_fires", source=["VIIRS_NOAA20_NRT"])
+
+    assert get.call_count == 2
+    assert FireDetection.objects.count() == 2
+
+
+@pytest.mark.django_db
+def test_ingest_cluster_failure_is_isolated(settings, two_distant_towers):
+    """One cluster erroring doesn't lose the other cluster, and doesn't raise."""
+    settings.FIRMS_MAP_KEY = "test-key"
+    responses = [
+        _mock_response(_csv(38.0, -120.0)),
+        _mock_response("Invalid MAP_KEY or rate limit exceeded."),  # not CSV
+    ]
+    with mock.patch(
+        "towers.management.commands.ingest_fires.requests.get",
+        side_effect=responses,
+    ):
+        call_command("ingest_fires", source=["VIIRS_NOAA20_NRT"])
+
+    # The healthy cluster's detection still landed.
+    assert FireDetection.objects.count() == 1
+
+
+@pytest.mark.django_db
+def test_source_fails_only_when_all_clusters_fail(settings, two_distant_towers):
+    """A source counts as failed only if every one of its clusters fails."""
+    settings.FIRMS_MAP_KEY = "test-key"
+    bad = "Invalid MAP_KEY or rate limit exceeded."
+    # Source A: both clusters fail. Source B: both clusters succeed. Requests are
+    # ordered source-outer, cluster-inner → [A/c1, A/c2, B/c1, B/c2].
+    responses = [
+        _mock_response(bad),
+        _mock_response(bad),
+        _mock_response(_csv(38.0, -120.0)),
+        _mock_response(_csv(39.0, -106.0)),
+    ]
+    with mock.patch(
+        "towers.management.commands.ingest_fires.requests.get",
+        side_effect=responses,
+    ):
+        # Does not raise: source B carried the run.
+        call_command("ingest_fires", source=["VIIRS_NOAA20_NRT", "VIIRS_SNPP_NRT"])
+
+    # Only source B's two detections persisted.
+    assert FireDetection.objects.count() == 2
+    assert set(FireDetection.objects.values_list("source", flat=True)) == {
+        "VIIRS_SNPP_NRT"
+    }

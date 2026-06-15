@@ -9,21 +9,53 @@ from towers.models import FuelType, WatchtowerSite
 # (Phase 3's viewshed replaces this circle with real terrain line-of-sight.)
 DEFAULT_COVERAGE_KM = 50.0
 
-# Five real California fire lookouts. Coordinates and elevations are approximate
-# (sourced from public lookout listings) — good enough for a demo map. lon/lat
-# order matters: PostGIS/GeoJSON are (x=lon, y=lat). fuel_type is a coarse take
-# on the dominant surrounding vegetation; it scales each tower's fire-weather risk.
+# Real western-US fire lookouts across California, Colorado, Washington, and
+# Oregon. Coordinates and elevations are approximate (sourced from public lookout
+# listings, cross-checked against 2+ sources) — good enough for a demo map.
+# lon/lat order matters: PostGIS/GeoJSON are (x=lon, y=lat). fuel_type is a coarse
+# take on the dominant surrounding vegetation; it scales each tower's fire-weather
+# risk. The towers cluster naturally by region, which the FIRMS ingest relies on
+# to keep each satellite query's bounding box small.
 SEED_TOWERS = [
+    # California lookouts
     {"name": "Sierra Buttes Lookout", "lon": -120.6417, "lat": 39.5953, "elevation_m": 2616, "fuel_type": FuelType.CONIFER},
     {"name": "Banner Mountain Lookout", "lon": -120.9840, "lat": 39.2360, "elevation_m": 824, "fuel_type": FuelType.MIXED},
     {"name": "Mount Harkness Lookout", "lon": -121.2336, "lat": 40.4097, "elevation_m": 2553, "fuel_type": FuelType.CONIFER},
     {"name": "Boucher Hill Lookout", "lon": -116.9014, "lat": 33.3491, "elevation_m": 1660, "fuel_type": FuelType.SHRUB},
     {"name": "High Point Lookout", "lon": -116.8290, "lat": 33.3262, "elevation_m": 1853, "fuel_type": FuelType.SHRUB},
+    # Colorado lookouts
+    {"name": "Devils Head Lookout", "lon": -105.1018, "lat": 39.2604, "elevation_m": 2971, "fuel_type": FuelType.CONIFER},
+    {"name": "Mestaa'ehehe Mountain Lookout", "lon": -105.4930, "lat": 39.6789, "elevation_m": 3505, "fuel_type": FuelType.CONIFER},
+    {"name": "Jersey Jim Lookout", "lon": -108.1840, "lat": 37.4975, "elevation_m": 2992, "fuel_type": FuelType.CONIFER},
+    {"name": "Shadow Mountain Lookout", "lon": -105.8144, "lat": 40.2306, "elevation_m": 3024, "fuel_type": FuelType.CONIFER},
+    {"name": "Fairview Peak Lookout", "lon": -106.5368, "lat": 38.6833, "elevation_m": 4028, "fuel_type": FuelType.SPARSE},
+    {"name": "Hahns Peak Lookout", "lon": -106.9297, "lat": 40.8431, "elevation_m": 3304, "fuel_type": FuelType.CONIFER},
+    # Washington lookouts
+    {"name": "Mount Pilchuck Lookout", "lon": -121.7978, "lat": 48.0580, "elevation_m": 1629, "fuel_type": FuelType.CONIFER},
+    {"name": "Heybrook Lookout", "lon": -121.5254, "lat": 47.8108, "elevation_m": 556, "fuel_type": FuelType.CONIFER},
+    {"name": "Winchester Mountain Lookout", "lon": -121.6431, "lat": 48.9566, "elevation_m": 1988, "fuel_type": FuelType.CONIFER},
+    {"name": "Evergreen Mountain Lookout", "lon": -121.2662, "lat": 47.8364, "elevation_m": 1703, "fuel_type": FuelType.CONIFER},
+    {"name": "Park Butte Lookout", "lon": -121.8563, "lat": 48.7165, "elevation_m": 1663, "fuel_type": FuelType.CONIFER},
+    {"name": "Desolation Peak Lookout", "lon": -121.0162, "lat": 48.9112, "elevation_m": 1860, "fuel_type": FuelType.CONIFER},
+    {"name": "Three Fingers Lookout", "lon": -121.6864, "lat": 48.1700, "elevation_m": 2088, "fuel_type": FuelType.SPARSE},
+    {"name": "Hidden Lake Lookout", "lon": -121.2046, "lat": 48.4954, "elevation_m": 2087, "fuel_type": FuelType.SPARSE},
+    # Oregon lookouts
+    {"name": "Hager Mountain Lookout", "lon": -121.0317, "lat": 43.0094, "elevation_m": 2191, "fuel_type": FuelType.CONIFER},
+    {"name": "Pickett Butte Lookout", "lon": -122.8547, "lat": 42.9437, "elevation_m": 975, "fuel_type": FuelType.CONIFER},
+    {"name": "Fivemile Butte Lookout", "lon": -121.4711, "lat": 45.4103, "elevation_m": 1416, "fuel_type": FuelType.CONIFER},
+    {"name": "Indian Ridge Lookout", "lon": -122.2536, "lat": 44.0056, "elevation_m": 1647, "fuel_type": FuelType.CONIFER},
+    {"name": "Warner Mountain Lookout", "lon": -122.3664, "lat": 43.5434, "elevation_m": 1615, "fuel_type": FuelType.CONIFER},
+    {"name": "Green Ridge Lookout", "lon": -121.6087, "lat": 44.5337, "elevation_m": 1429, "fuel_type": FuelType.CONIFER},
+    {"name": "Clear Lake Butte Lookout", "lon": -121.7192, "lat": 45.1568, "elevation_m": 1358, "fuel_type": FuelType.CONIFER},
+    {"name": "Gold Butte Lookout", "lon": -122.0832, "lat": 44.8052, "elevation_m": 1408, "fuel_type": FuelType.CONIFER},
 ]
 
 
 class Command(BaseCommand):
-    help = "Seed the database with a handful of real California fire lookouts."
+    help = (
+        "Seed the database with real western-US fire lookouts "
+        "(California, Colorado, Washington, Oregon)."
+    )
 
     def handle(self, *args, **options):
         created = updated = 0
