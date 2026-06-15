@@ -45,16 +45,28 @@ single `towers` app.
   polygonizes visible cells with rasterio/shapely back to 4326. **Shells out to
   the GDAL CLI** (`gdalbuildvrt`/`gdalwarp`/`gdal_viewshed`) — only available
   inside the Docker image.
-- **`towers/views.py` + `towers/urls.py`** — thin GeoJSON API
+- **`towers/views.py` + `towers/urls.py`** — thin GeoJSON/JSON API
   (`/api/towers.geojson`, `/api/fires.geojson`, `/api/towers/<id>/fires.geojson`,
   `/api/towers/<id>/risk.json`) plus `/` which renders
   `templates/towers/map.html`. Tower features carry the latest risk rating + ML
-  ignition probability (both null-safe). Views serialize models to GeoJSON by
-  hand; coordinates are always `[lon, lat]`.
+  ignition probability (both null-safe). `fires.geojson` accepts
+  `?start=&end=&source=` (no params → all, for back-compat). Phase 6 adds three
+  read-only aggregate endpoints behind the dashboard: `fires/timeseries.json`
+  (daily counts by source over the full dataset + `min_date`/`max_date`),
+  `fires/stats.json?start=&end=` (per-tower in-range counts + an FRP histogram,
+  window-scoped), and `risk/timeseries.json` (per-day mean FWI risk + mean ML
+  ignition). Views serialize models by hand; coordinates are always `[lon, lat]`.
 - **Frontend (`assets/`)** — React + TypeScript + Vite app (MapLibre via
   [mapcn](https://www.mapcn.dev)) wired into Django by **django-vite**. Entry is
   `assets/main.tsx`; map logic in `assets/components/MapView.tsx`; vendored mapcn
-  UI in `assets/components/ui/map.tsx`. It fetches the GeoJSON endpoints above.
+  UI in `assets/components/ui/map.tsx`. Phase 6 makes it a **map-first analytics
+  dashboard**: `assets/components/analytics/` holds a collapsible overlay
+  (`AnalyticsPanel`) of recharts cards + a bottom `TimeRangeControl` (preset
+  buttons + a brushable fires/day histogram). A single time window — anchored to
+  the latest detection via `lib/time.ts`, *not* wall-clock now — drives both the
+  filtered fires fetch and the cards. Fires render through `MapClusterLayer` to
+  stay fast. Data via the shared `lib/useJson.ts` hook; charts use the shadcn
+  `card`/`chart` primitives in `components/ui/`.
 - **Management commands** (`towers/management/commands/`) — the ETL.
   `seed_towers` (5 real CA lookouts), `ingest_fires` (FIRMS CSV → DB; pulls
   all three VIIRS NRT sensors — NOAA-20/SNPP/NOAA-21 — by default, isolating
