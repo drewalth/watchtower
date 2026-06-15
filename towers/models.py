@@ -126,7 +126,9 @@ class FireDetection(models.Model):
     """A single satellite fire detection from NASA FIRMS (VIIRS)."""
 
     location = models.PointField(srid=4326, spatial_index=True)
-    acquired_at = models.DateTimeField(help_text="UTC time of the satellite pass.")
+    acquired_at = models.DateTimeField(
+        db_index=True, help_text="UTC time of the satellite pass."
+    )
     source = models.CharField(max_length=50, help_text="e.g. VIIRS_NOAA20_NRT")
     frp = models.FloatField(null=True, blank=True, help_text="Fire radiative power (MW).")
     confidence = models.CharField(max_length=20, help_text="FIRMS confidence, stored raw.")
