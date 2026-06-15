@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { InitScreen } from "@/components/InitScreen";
-import { MapView } from "@/components/MapView";
+import { MapView } from "@/components/map/MapView";
 import { cn } from "@/lib/utils";
 import { selectAppReady, selectMapReady, useAppStore } from "@/store/appStore";
 
