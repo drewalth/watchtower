@@ -9,6 +9,10 @@ import { selectAppReady, selectMapReady, useAppStore } from "@/store/appStore";
  *  basemap style/tiles fail to load) — once the data is loaded — so a failed
  *  basemap can't leave the init overlay up forever. */
 const REVEAL_FALLBACK_MS = 8000;
+/** Brief hold after the reveal gate completes so the progress bar's 100% state
+ *  is perceptible before the fade begins (otherwise it'd vanish the instant it
+ *  fills). */
+const REVEAL_HOLD_MS = 500;
 /** Overlay fade duration; the wrapper unmounts after it elapses. Keep in sync
  *  with the `duration-*` class below. */
 const FADE_MS = 400;
@@ -22,6 +26,7 @@ export function AppInitializer() {
   const dataReady = useAppStore(selectAppReady);
   const mapReady = useAppStore(selectMapReady);
   const [timedOut, setTimedOut] = useState(false);
+  const [held, setHeld] = useState(false);
 
   // Safety net: if the map never reports ready, reveal once data is loaded.
   useEffect(() => {
@@ -31,10 +36,17 @@ export function AppInitializer() {
 
   const complete = dataReady && (mapReady || timedOut);
 
+  // Once the gate completes, let the 100% bar register for a beat before fading.
+  useEffect(() => {
+    if (!complete) return;
+    const t = setTimeout(() => setHeld(true), REVEAL_HOLD_MS);
+    return () => clearTimeout(t);
+  }, [complete]);
+
   return (
     <>
       <MapView />
-      <InitOverlay hidden={complete} />
+      <InitOverlay hidden={held} />
     </>
   );
 }
