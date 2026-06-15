@@ -95,6 +95,8 @@ export interface PredictionSummary {
 export interface TowerProps extends PredictionSummary {
   id: number;
   name: string;
+  /** USPS two-letter state code (e.g. "CA"); "" if not set. */
+  state: string;
   elevation_m: number;
   coverage_radius_km: number;
   fire_count: number;

@@ -5,9 +5,11 @@ import { Map } from "@/components/ui/map";
 import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import { TimeRangeControl } from "@/components/analytics/TimeRangeControl";
 import { CoverageLayer } from "@/components/map/CoverageLayer";
+import { FilterSearchControl } from "@/components/map/FilterSearchControl";
 import { FireClusterLayer } from "@/components/map/FireClusterLayer";
 import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
+import { ReloadingOverlay } from "@/components/map/ReloadingOverlay";
 import { MapReadyReporter } from "@/components/map/MapReadyReporter";
 import { MapViewportSync } from "@/components/map/MapViewportSync";
 import { SelectedFirePopup } from "@/components/map/SelectedFirePopup";
@@ -71,6 +73,8 @@ export function MapView() {
       <CoverageLayer />
       <TowerMarkers />
       <FireClusterLayer />
+      <FilterSearchControl />
+      <ReloadingOverlay />
       {timeseries && timeWindow && (
         <>
           <AnalyticsPanel

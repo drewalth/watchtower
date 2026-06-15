@@ -40,6 +40,7 @@ def towers_geojson(request):
             "properties": {
                 "id": site.id,
                 "name": site.name,
+                "state": site.state,
                 "elevation_m": site.elevation_m,
                 "coverage_radius_km": site.coverage_radius_km,
                 "fire_count": site.fires_in_range().count(),

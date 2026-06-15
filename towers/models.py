@@ -46,6 +46,11 @@ class WatchtowerSite(models.Model):
         default=20.0,
         help_text="Naive line-of-sight radius; used for the coverage model.",
     )
+    state = models.CharField(
+        max_length=2,
+        default="",
+        help_text="USPS two-letter state code (e.g. CA, CO, WA, OR).",
+    )
     fuel_type = models.CharField(
         max_length=20,
         choices=FuelType.choices,

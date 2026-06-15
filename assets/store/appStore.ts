@@ -31,6 +31,23 @@ const DEFAULT_PRESET: PresetKey = "30d";
 /** A fire detection the user clicked, with the coordinates for its popup. */
 export type SelectedFire = { lng: number; lat: number; props: FireProps };
 
+/** Client-side map filters. All applied in-memory to already-loaded data — no
+ *  refetch. `searchText` holds the committed (debounced) value; the input
+ *  component owns the raw keystrokes. */
+export interface MapFilters {
+  searchText: string;
+  state: string | null; // null = all states
+  minFireCount: number; // 0 = no floor
+  hasActiveFire: boolean; // true = only towers with fire_count > 0
+}
+
+const DEFAULT_FILTERS: MapFilters = {
+  searchText: "",
+  state: null,
+  minFireCount: 0,
+  hasActiveFire: false,
+};
+
 interface AppState {
   /** Map-critical data (gates the initialization screen). */
   towers: Loadable<TowerCollection>;
@@ -46,6 +63,12 @@ interface AppState {
   timeWindow: TimeWindow | null;
   preset: PresetKey | null;
   selectedFire: SelectedFire | null;
+  /** Client-side filters applied to the loaded towers + fires. */
+  filters: MapFilters;
+  /** Transient: true while the debounced text search is settling — drives the
+   *  full-screen reloading overlay only. Set by FilterSearchControl off the
+   *  debounce edge; not derived from any Loadable. */
+  isFiltering: boolean;
   /** Last known map camera (center/zoom/bearing/pitch). Updated on gesture end
    *  and re-applied across basemap switches so changing the style doesn't snap
    *  the view back to the new style's default. Persisted imperatively (no
@@ -77,6 +100,12 @@ interface AppActions {
   setViewport: (viewport: MapViewport) => void;
   loadTowerRisk: (id: number) => void;
   selectFire: (fire: SelectedFire | null) => void;
+  setSearchText: (text: string) => void;
+  setStateFilter: (state: string | null) => void;
+  setMinFireCount: (n: number) => void;
+  setHasActiveFire: (on: boolean) => void;
+  resetFilters: () => void;
+  setIsFiltering: (on: boolean) => void;
 }
 
 export type AppStore = AppState & AppActions;
@@ -226,6 +255,8 @@ export const useAppStore = create<AppStore>()(
       timeWindow: null,
       preset: null,
       selectedFire: null,
+      filters: DEFAULT_FILTERS,
+      isFiltering: false,
       viewport: null,
       ready: false,
       mapReady: false,
@@ -313,6 +344,36 @@ export const useAppStore = create<AppStore>()(
       selectFire: (fire) =>
         set((s) => {
           s.selectedFire = fire;
+        }),
+
+      setSearchText: (text) =>
+        set((s) => {
+          s.filters.searchText = text;
+        }),
+
+      setStateFilter: (state) =>
+        set((s) => {
+          s.filters.state = state;
+        }),
+
+      setMinFireCount: (n) =>
+        set((s) => {
+          s.filters.minFireCount = n;
+        }),
+
+      setHasActiveFire: (on) =>
+        set((s) => {
+          s.filters.hasActiveFire = on;
+        }),
+
+      resetFilters: () =>
+        set((s) => {
+          s.filters = DEFAULT_FILTERS;
+        }),
+
+      setIsFiltering: (on) =>
+        set((s) => {
+          s.isFiltering = on;
         }),
 
       setViewport: (viewport) =>

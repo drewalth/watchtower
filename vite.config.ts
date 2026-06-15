@@ -1,4 +1,7 @@
-import { defineConfig } from 'vite';
+// Import from 'vitest/config' (not 'vite') so the `test` block below is
+// type-checked against Vitest's InlineConfig. It re-exports Vite's defineConfig,
+// so all Vite options remain valid and the runtime behaviour is unchanged.
+import { defineConfig } from 'vitest/config';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
 import path from 'path';
@@ -9,6 +12,9 @@ export default defineConfig({
   resolve: {
     // `@/...` -> ./assets/... (mirrors tsconfig paths so shadcn/mapcn imports resolve).
     alias: { '@': path.resolve(__dirname, './assets') },
+    // Force a single React instance. radix-ui + other React libs can otherwise be
+    // pre-bundled against a second copy, producing "Invalid hook call" at runtime.
+    dedupe: ['react', 'react-dom'],
   },
   server: {
     // Dev server runs on the host; Django (in Docker) loads modules from here,
@@ -16,6 +22,11 @@ export default defineConfig({
     host: 'localhost',
     port: 5173,
     origin: 'http://localhost:5173',
+    cors: true,
+  },
+  preview: {
+    host: 'localhost',
+    port: 5173,
     cors: true,
   },
   build: {

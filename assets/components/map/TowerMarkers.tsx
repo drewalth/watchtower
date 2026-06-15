@@ -1,26 +1,21 @@
 import { TowerControl } from "lucide-react";
 
-import {
-  MapMarker,
-  MarkerContent,
-  MarkerPopup,
-} from "@/components/ui/map";
+import { MapMarker, MarkerContent, MarkerPopup } from "@/components/ui/map";
+import { useFilteredTowers } from "@/hooks/useFilteredMapData";
 import { getLoadedData, isFailed } from "@/lib/loadable";
 import { RISK_COLORS, RISK_LABELS, riskColor } from "@/lib/mapStyle";
-import {
-  type PredictionSummary,
-  type TowerProps,
-} from "@/lib/types";
+import { type PredictionSummary, type TowerProps } from "@/lib/types";
 import { useAppStore } from "@/store/appStore";
 
-/** One clickable marker per tower, with a popup of its details. */
+/** One clickable marker per tower (filtered to the active search/filters), with
+ *  a popup of its details. */
 export function TowerMarkers() {
-  const towers = useAppStore((s) => getLoadedData(s.towers));
+  const { visibleTowerCollection } = useFilteredTowers();
   const loadTowerRisk = useAppStore((s) => s.loadTowerRisk);
-  if (!towers) return null;
+  if (!visibleTowerCollection) return null;
   return (
     <>
-      {towers.features.map((f) => {
+      {visibleTowerCollection.features.map((f) => {
         const [lng, lat] = f.geometry.coordinates as [number, number];
         return (
           <MapMarker key={f.properties.id} longitude={lng} latitude={lat}>

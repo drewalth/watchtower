@@ -32,5 +32,5 @@
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true
   },
-  "include": ["assets", "vite.config.js"]
+  "include": ["assets", "vite.config.ts"]
 }

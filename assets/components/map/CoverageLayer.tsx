@@ -1,20 +1,23 @@
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 
 import { useMap } from "@/components/ui/map";
-import { getLoadedData } from "@/lib/loadable";
+import { useFilteredTowers } from "@/hooks/useFilteredMapData";
 import { CIRCLE, VIEWSHED } from "@/lib/mapStyle";
 import { type TowerCollection } from "@/lib/types";
-import { useAppStore } from "@/store/appStore";
 
 // MapLibre source/layer ids.
 const COVERAGE_SOURCE = "coverage";
 const COVERAGE_FILL = "coverage-fill";
 const COVERAGE_LINE = "coverage-line";
 
-/** Tower coverage polygons as a fill + outline layer, coloured by kind. */
+/** Tower coverage polygons as a fill + outline layer, coloured by kind. Tracks
+ *  the filtered tower set so coverage narrows with the active filters. */
 export function CoverageLayer() {
-  const towers = useAppStore((s) => getLoadedData(s.towers));
+  const { visibleTowerCollection: towers } = useFilteredTowers();
   const { map, isLoaded } = useMap();
+  // Latch the initial camera fit: re-fitting on every filter change would snap
+  // the view around as the user narrows the towers.
+  const didFit = useRef(false);
 
   useEffect(() => {
     if (!isLoaded || !map || !towers) return;
@@ -55,7 +58,10 @@ export function CoverageLayer() {
       paint: { "line-color": byKind as never, "line-width": 1 },
     });
 
-    fitToCoverage(map, features, towers);
+    if (!didFit.current) {
+      fitToCoverage(map, features, towers);
+      didFit.current = true;
+    }
 
     return () => {
       if (map.getLayer(COVERAGE_LINE)) map.removeLayer(COVERAGE_LINE);

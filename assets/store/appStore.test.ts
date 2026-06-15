@@ -75,12 +75,48 @@ describe("appStore.initialize", () => {
       "fetch",
       vi.fn(() => new Promise<never>(() => {})),
     );
-    useAppStore.getState().setWindow({ start: "2025-01-10", end: "2025-02-01" });
+    useAppStore
+      .getState()
+      .setWindow({ start: "2025-01-10", end: "2025-02-01" });
 
     const s = useAppStore.getState();
     expect(s.timeWindow).toEqual({ start: "2025-01-10", end: "2025-02-01" });
     expect(s.preset).toBeNull(); // a manual window clears the preset
     expect(s.fires.state).toBe("reloading");
     expect(s.fires.data).toBe(firesPayload); // previous data stays visible
+  });
+});
+
+describe("appStore filters", () => {
+  it("updates each filter field and resets to defaults", async () => {
+    const { useAppStore } = await freshStore();
+    const store = useAppStore.getState();
+
+    store.setSearchText("sierra");
+    store.setStateFilter("CA");
+    store.setMinFireCount(3);
+    store.setHasActiveFire(true);
+
+    expect(useAppStore.getState().filters).toEqual({
+      searchText: "sierra",
+      state: "CA",
+      minFireCount: 3,
+      hasActiveFire: true,
+    });
+
+    useAppStore.getState().resetFilters();
+    expect(useAppStore.getState().filters).toEqual({
+      searchText: "",
+      state: null,
+      minFireCount: 0,
+      hasActiveFire: false,
+    });
+  });
+
+  it("toggles the reloading-overlay flag", async () => {
+    const { useAppStore } = await freshStore();
+    expect(useAppStore.getState().isFiltering).toBe(false);
+    useAppStore.getState().setIsFiltering(true);
+    expect(useAppStore.getState().isFiltering).toBe(true);
   });
 });
