@@ -5,9 +5,77 @@
 export const API = {
   towers: "/api/towers.geojson",
   fires: "/api/fires.geojson",
+  /** Daily fire counts by source over the full dataset (+ min/max date). */
+  firesTimeseries: "/api/fires/timeseries.json",
+  /** Window-scoped per-tower counts + FRP histogram. */
+  firesStats: "/api/fires/stats.json",
+  /** Per-day mean FWI risk + mean ML ignition probability across towers. */
+  riskTimeseries: "/api/risk/timeseries.json",
   /** Per-tower fire-risk detail (series + contributing FWI factors). */
   towerRisk: (id: number) => `/api/towers/${id}/risk.json`,
 } as const;
+
+/** Build the filtered fires URL for an inclusive date window (+ optional source). */
+export function firesQuery(window: {
+  start: string;
+  end: string;
+  source?: string;
+}): string {
+  const params = new URLSearchParams({ start: window.start, end: window.end });
+  if (window.source) params.set("source", window.source);
+  return `${API.fires}?${params.toString()}`;
+}
+
+/** Build the window-scoped fires/stats URL. */
+export function statsQuery(window: { start: string; end: string }): string {
+  const params = new URLSearchParams({ start: window.start, end: window.end });
+  return `${API.firesStats}?${params.toString()}`;
+}
+
+/** One (day, source) bucket of detection counts (towers/views.py fires_timeseries). */
+export interface FireTimeseriesDay {
+  date: string;
+  source: string;
+  count: number;
+}
+
+export interface FireTimeseries {
+  series: FireTimeseriesDay[];
+  /** Earliest/latest detection day; null when the DB has no fires yet. */
+  min_date: string | null;
+  max_date: string | null;
+}
+
+/** Fires within one tower's coverage over the window. */
+export interface TowerCount {
+  id: number;
+  name: string;
+  count: number;
+}
+
+/** One FRP-magnitude bin (open upper bound when `max` is null). */
+export interface FrpBucket {
+  label: string;
+  min: number;
+  max: number | null;
+  count: number;
+}
+
+export interface FireStats {
+  per_tower: TowerCount[];
+  frp_buckets: FrpBucket[];
+}
+
+/** One day of the all-tower aggregate risk/ML series (towers/views.py). */
+export interface RiskTimeseriesDay {
+  date: string;
+  mean_risk: number | null;
+  mean_ignition: number | null;
+}
+
+export interface RiskTimeseries {
+  series: RiskTimeseriesDay[];
+}
 
 /** "viewshed" = terrain line-of-sight polygon; "circle" = naive radius buffer. */
 export type CoverageKind = "viewshed" | "circle";

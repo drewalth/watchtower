@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useState } from "react";
-import type { MapLayerMouseEvent } from "maplibre-gl";
+import { useEffect, useMemo, useState } from "react";
 
 import {
   Map,
+  MapClusterLayer,
   MapControls,
   MapMarker,
   MapPopup,
@@ -12,12 +12,26 @@ import {
 } from "@/components/ui/map";
 import { TowerControl } from "lucide-react";
 
+import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
+import { TimeRangeControl } from "@/components/analytics/TimeRangeControl";
+import { useJson } from "@/lib/useJson";
+import {
+  denseDailyTotals,
+  presetWindow,
+  type PresetKey,
+  type TimeWindow,
+} from "@/lib/time";
 import {
   API,
+  firesQuery,
+  statsQuery,
   type FireCollection,
   type FireProps,
+  type FireStats,
+  type FireTimeseries,
   type PredictionSummary,
   type RiskLevel,
+  type RiskTimeseries,
   type TowerCollection,
   type TowerProps,
   type TowerRiskDetail,
@@ -27,9 +41,6 @@ import {
 const COVERAGE_SOURCE = "coverage";
 const COVERAGE_FILL = "coverage-fill";
 const COVERAGE_LINE = "coverage-line";
-const FIRE_SOURCE = "fires";
-const FIRE_CIRCLE = "fire-circle";
-
 // Coverage colours: viewshed green, circle blue.
 const VIEWSHED = "#238b45";
 const CIRCLE = "#2b8cbe";
@@ -62,30 +73,51 @@ const CA_CENTER: [number, number] = [-120.5, 38.5];
 
 type SelectedFire = { lng: number; lat: number; props: FireProps };
 
-/** Fetch a JSON document once and keep it in state. The shape is the API
- *  contract (mirrored in lib/types.ts and guaranteed server-side), so we
- *  annotate the decoded payload as `T` rather than asserting it. */
-function useJson<T>(url: string): T | null {
-  const [data, setData] = useState<T | null>(null);
-  useEffect(() => {
-    let active = true;
-    fetch(url)
-      .then((r): Promise<T> => r.json())
-      .then((json) => {
-        if (active) setData(json);
-      })
-      .catch((err) => console.error(`Failed to load ${url}`, err));
-    return () => {
-      active = false;
-    };
-  }, [url]);
-  return data;
-}
+// Initial time window: the last 30 days of available data.
+const DEFAULT_PRESET: PresetKey = "30d";
 
 export function MapView() {
   const towers = useJson<TowerCollection>(API.towers);
-  const fires = useJson<FireCollection>(API.fires);
+  const timeseries = useJson<FireTimeseries>(API.firesTimeseries);
+  const risk = useJson<RiskTimeseries>(API.riskTimeseries);
+
+  const [timeWindow, setTimeWindow] = useState<TimeWindow | null>(null);
+  const [preset, setPreset] = useState<PresetKey | null>(DEFAULT_PRESET);
   const [selectedFire, setSelectedFire] = useState<SelectedFire | null>(null);
+
+  // Anchor the initial window to the latest detection (not wall-clock now) once
+  // the timeseries — and with it the data's date range — has loaded.
+  const minDate = timeseries?.min_date ?? null;
+  const maxDate = timeseries?.max_date ?? null;
+  useEffect(() => {
+    if (minDate && maxDate && !timeWindow) {
+      setTimeWindow(presetWindow(DEFAULT_PRESET, minDate, maxDate));
+    }
+  }, [minDate, maxDate, timeWindow]);
+
+  // Window-scoped fetches re-run whenever the window (and thus the URL) changes.
+  const fires = useJson<FireCollection>(
+    timeWindow ? firesQuery(timeWindow) : null,
+  );
+  const stats = useJson<FireStats>(timeWindow ? statsQuery(timeWindow) : null);
+
+  const dense = useMemo(
+    () =>
+      timeseries && minDate && maxDate
+        ? denseDailyTotals(timeseries.series, minDate, maxDate)
+        : [],
+    [timeseries, minDate, maxDate],
+  );
+
+  const handlePreset = (key: PresetKey) => {
+    if (!minDate || !maxDate) return;
+    setPreset(key);
+    setTimeWindow(presetWindow(key, minDate, maxDate));
+  };
+  const handleWindow = (next: TimeWindow) => {
+    setPreset(null); // a manual brush is no longer one of the presets
+    setTimeWindow(next);
+  };
 
   return (
     <Map center={CA_CENTER} zoom={6} className="h-full w-full">
@@ -93,7 +125,24 @@ export function MapView() {
       <MapLegend towers={towers} />
       {towers && <CoverageLayer towers={towers} />}
       {towers && <TowerMarkers towers={towers} />}
-      {fires && <FiresLayer fires={fires} onSelect={setSelectedFire} />}
+      {fires && <FireClusterLayer fires={fires} onSelect={setSelectedFire} />}
+      {timeseries && timeWindow && (
+        <>
+          <AnalyticsPanel
+            timeseries={timeseries}
+            risk={risk}
+            stats={stats}
+            window={timeWindow}
+          />
+          <TimeRangeControl
+            dense={dense}
+            window={timeWindow}
+            preset={preset}
+            onWindowChange={handleWindow}
+            onPresetChange={handlePreset}
+          />
+        </>
+      )}
       {selectedFire && (
         <MapPopup
           longitude={selectedFire.lng}
@@ -222,64 +271,31 @@ function CoverageLayer({ towers }: { towers: TowerCollection }) {
   return null;
 }
 
-/** Live fire detections as red circles; clicking one opens a popup. */
-function FiresLayer({
+/** Fire detections as a clustered layer: counts at low zoom, individual points
+ *  up close (clicking one opens its popup). Clustering keeps the map responsive
+ *  even when a wide window spans tens of thousands of detections. */
+function FireClusterLayer({
   fires,
   onSelect,
 }: {
   fires: FireCollection;
   onSelect: (fire: SelectedFire) => void;
 }) {
-  const { map, isLoaded } = useMap();
-  const handleSelect = useCallback(onSelect, [onSelect]);
-
-  useEffect(() => {
-    if (!isLoaded || !map) return;
-
-    map.addSource(FIRE_SOURCE, { type: "geojson", data: fires });
-    map.addLayer({
-      id: FIRE_CIRCLE,
-      type: "circle",
-      source: FIRE_SOURCE,
-      paint: {
-        "circle-radius": 4,
-        "circle-color": "#ef6548",
-        "circle-stroke-color": "#d7301f",
-        "circle-stroke-width": 1,
-        "circle-opacity": 0.85,
-      },
-    });
-
-    const onClick = (e: MapLayerMouseEvent) => {
-      const feature = e.features?.[0];
-      if (!feature) return;
-      const [lng, lat] = (feature.geometry as GeoJSON.Point).coordinates as [
-        number,
-        number,
-      ];
-      handleSelect({ lng, lat, props: feature.properties as unknown as FireProps });
-    };
-    const enter = () => {
-      map.getCanvas().style.cursor = "pointer";
-    };
-    const leave = () => {
-      map.getCanvas().style.cursor = "";
-    };
-
-    map.on("click", FIRE_CIRCLE, onClick);
-    map.on("mouseenter", FIRE_CIRCLE, enter);
-    map.on("mouseleave", FIRE_CIRCLE, leave);
-
-    return () => {
-      map.off("click", FIRE_CIRCLE, onClick);
-      map.off("mouseenter", FIRE_CIRCLE, enter);
-      map.off("mouseleave", FIRE_CIRCLE, leave);
-      if (map.getLayer(FIRE_CIRCLE)) map.removeLayer(FIRE_CIRCLE);
-      if (map.getSource(FIRE_SOURCE)) map.removeSource(FIRE_SOURCE);
-    };
-  }, [isLoaded, map, fires, handleSelect]);
-
-  return null;
+  return (
+    <MapClusterLayer<FireProps>
+      data={fires}
+      pointColor="#ef6548"
+      clusterColors={["#fdbb84", "#ef6548", "#d7301f"]}
+      onPointClick={(feature, coordinates) => {
+        if (!feature.properties) return;
+        onSelect({
+          lng: coordinates[0],
+          lat: coordinates[1],
+          props: feature.properties,
+        });
+      }}
+    />
+  );
 }
 
 /** One clickable marker per tower, with a popup of its details. */
