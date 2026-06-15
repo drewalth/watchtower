@@ -20,7 +20,7 @@ export function SourceBreakdownCard({
   const slices = sourceTotals(windowRows).map((slice, i) => ({
     ...slice,
     label: shortSource(slice.source),
-    fill: SOURCE_COLORS[i % SOURCE_COLORS.length],
+    fill: SOURCE_COLORS[i % SOURCE_COLORS.length]!,
   }));
   const config: ChartConfig = Object.fromEntries(
     slices.map((s) => [s.label, { label: s.label, color: s.fill }]),

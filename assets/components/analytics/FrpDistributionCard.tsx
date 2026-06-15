@@ -12,7 +12,7 @@ export function FrpDistributionCard({ stats }: { stats: FireStats | null }) {
   const items = buckets.map((b, i) => ({
     label: `${b.label} MW`,
     value: b.count,
-    color: BUCKET_COLORS[i % BUCKET_COLORS.length],
+    color: BUCKET_COLORS[i % BUCKET_COLORS.length]!,
   }));
 
   return (

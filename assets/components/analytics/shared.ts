@@ -50,7 +50,7 @@ export function sourceTotals(
 /** "VIIRS_NOAA20_SP" → "NOAA-20", "VIIRS_SNPP_NRT" → "SNPP" — compact labels. */
 export function shortSource(source: string): string {
   const match = source.match(/VIIRS_(\w+?)(?:_NRT|_SP)?$/);
-  const core = match ? match[1] : source;
+  const core = match?.[1] ?? source;
   return core.replace(/^NOAA(\d+)$/, "NOAA-$1");
 }
 

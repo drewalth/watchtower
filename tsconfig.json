@@ -21,7 +21,8 @@
     "resolveJsonModule": true,
 
     // Path alias — `@/...` resolves to the Vite source root (./assets).
-    "baseUrl": ".",
+    // Paths resolve relative to this tsconfig (no baseUrl needed under
+    // moduleResolution: "bundler").
     "paths": {
       "@/*": ["./assets/*"]
     },

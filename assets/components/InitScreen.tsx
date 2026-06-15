@@ -36,7 +36,8 @@ export function InitScreen() {
   const stats = useAppStore((s) => s.stats.state);
   const retry = useAppStore((s) => s.retry);
   const criticalError = useAppStore((s) => {
-    for (const src of [s.towers, s.timeseries, s.fires]) {
+    const critical: Loadable<unknown>[] = [s.towers, s.timeseries, s.fires];
+    for (const src of critical) {
       if (isFailed(src)) return src.error;
     }
     return null;

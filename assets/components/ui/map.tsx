@@ -1743,9 +1743,8 @@ function MapClusterLayer<
       const features = map.queryRenderedFeatures(e.point, {
         layers: [clusterLayerId],
       });
-      if (!features.length) return;
-
       const feature = features[0];
+      if (!feature) return;
       const clusterId = feature.properties?.cluster_id as number;
       const pointCount = feature.properties?.point_count as number;
       const coordinates = (feature.geometry as GeoJSON.Point).coordinates as [
@@ -1775,6 +1774,7 @@ function MapClusterLayer<
       if (!onPointClick || !e.features?.length) return;
 
       const feature = e.features[0];
+      if (!feature) return;
       const coordinates = (
         feature.geometry as GeoJSON.Point
       ).coordinates.slice() as [number, number];
