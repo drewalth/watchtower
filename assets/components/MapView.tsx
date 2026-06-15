@@ -10,7 +10,17 @@ import {
   MarkerPopup,
   useMap,
 } from "@/components/ui/map";
-import { TowerControl } from "lucide-react";
+import { HelpCircle, TowerControl } from "lucide-react";
+
+import { HelpModal } from "@/components/HelpModal";
+import {
+  CIRCLE,
+  RISK_COLORS,
+  RISK_LABELS,
+  RISK_LEVELS,
+  VIEWSHED,
+  riskColor,
+} from "@/lib/mapStyle";
 
 import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import { TimeRangeControl } from "@/components/analytics/TimeRangeControl";
@@ -41,32 +51,6 @@ import {
 const COVERAGE_SOURCE = "coverage";
 const COVERAGE_FILL = "coverage-fill";
 const COVERAGE_LINE = "coverage-line";
-// Coverage colours: viewshed green, circle blue.
-const VIEWSHED = "#238b45";
-const CIRCLE = "#2b8cbe";
-
-// Fire-risk ramp, low → extreme. Ordered for the legend scale.
-const RISK_LEVELS: RiskLevel[] = ["low", "moderate", "high", "very_high", "extreme"];
-const RISK_COLORS: Record<RiskLevel, string> = {
-  low: "#2b9348",
-  moderate: "#f9c74f",
-  high: "#f3722c",
-  very_high: "#e63946",
-  extreme: "#9d0208",
-};
-const RISK_LABELS: Record<RiskLevel, string> = {
-  low: "Low",
-  moderate: "Moderate",
-  high: "High",
-  very_high: "Very high",
-  extreme: "Extreme",
-};
-// No assessment yet (compute_fire_risk hasn't run): neutral slate marker.
-const RISK_UNKNOWN = "#475569";
-
-function riskColor(level: RiskLevel | null): string {
-  return level ? RISK_COLORS[level] : RISK_UNKNOWN;
-}
 
 // California-ish starting view; fitBounds refines it once towers load.
 const CA_CENTER: [number, number] = [-120.5, 38.5];
@@ -161,9 +145,20 @@ export function MapView() {
  *  kinds actually present in the data, so the legend matches what's drawn. */
 function MapLegend({ towers }: { towers: TowerCollection | null }) {
   const kinds = new Set(towers?.features.map((f) => f.properties.coverage_kind));
+  const [helpOpen, setHelpOpen] = useState(false);
   return (
     <div className="bg-background/95 text-foreground absolute top-2 left-2 z-10 rounded-md border p-3 text-xs shadow-sm backdrop-blur-sm">
-      <div className="mb-1.5 font-semibold">Legend</div>
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <span className="font-semibold">Legend</span>
+        <button
+          type="button"
+          onClick={() => setHelpOpen(true)}
+          aria-label="Map help"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <HelpCircle size={14} />
+        </button>
+      </div>
       <ul className="space-y-1.5">
         <li className="flex items-center gap-2">
           <span className="flex size-4 items-center justify-center rounded-full border-2 border-white bg-slate-800 text-white shadow">
@@ -208,6 +203,7 @@ function MapLegend({ towers }: { towers: TowerCollection | null }) {
           <span>Extreme</span>
         </div>
       </div>
+      <HelpModal open={helpOpen} onOpenChange={setHelpOpen} />
     </div>
   );
 }

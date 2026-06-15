@@ -19,11 +19,17 @@ class Command(BaseCommand):
             "--mast", type=float, default=10.0,
             help="Observer mast height in metres above the ground. Default 10.",
         )
+        parser.add_argument(
+            "--only-missing", action="store_true",
+            help="Only compute towers that don't already have a stored viewshed.",
+        )
 
     def handle(self, *args, **options):
         towers = WatchtowerSite.objects.all()
         if options["tower"] is not None:
             towers = towers.filter(pk=options["tower"])
+        if options["only_missing"]:
+            towers = towers.filter(viewshed__isnull=True)
         towers = list(towers)
         if not towers:
             raise CommandError("No matching towers — seed_towers first.")

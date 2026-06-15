@@ -76,7 +76,7 @@ single `towers` app.
   and a sensor only counts as failed if *every* cluster fails; `--start/--end`
   switches to the standard-processing **archive** sources, chunked into 5-day
   windows),
-  `compute_viewsheds` (DEM → stored polygons). Phase 4: `ingest_weather`
+  `compute_viewsheds` (DEM → stored polygons; `--only-missing` skips towers that already have a viewshed, useful after adding new towers so existing ones aren't recomputed). Phase 4: `ingest_weather`
   (Open-Meteo forecast → `WeatherObservation`), `compute_fire_risk`
   (`WeatherObservation` → FWI codes → `FireRiskAssessment`, walked forward since
   the moisture codes are recursive). Phase 5: `backfill_weather` (Open-Meteo

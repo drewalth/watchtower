@@ -26,7 +26,7 @@ export function AnalyticsPanel({
   stats: FireStats | null;
   window: TimeWindow;
 }) {
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(false);
 
   const windowRows = useMemo(
     () => inWindow(timeseries.series, window.start, window.end),
