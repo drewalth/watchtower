@@ -27,6 +27,29 @@ const defaultStyles = {
 
 type Theme = "light" | "dark";
 
+/** Selectable basemap. "satellite" is opt-in via the `styles.satellite` prop. */
+type MapStyleId = "light" | "dark" | "satellite";
+
+/**
+ * Resolve the active style: an explicit `styleId` selection wins (falling back
+ * to theme when satellite isn't configured); otherwise the basemap follows the
+ * resolved light/dark theme — preserving the original theme-driven behavior.
+ */
+function pickStyle(
+  styleId: MapStyleId | undefined,
+  theme: Theme,
+  styles: {
+    light: MapStyleOption;
+    dark: MapStyleOption;
+    satellite?: MapStyleOption | undefined;
+  },
+): MapStyleOption {
+  if (styleId === "satellite" && styles.satellite) return styles.satellite;
+  if (styleId === "light") return styles.light;
+  if (styleId === "dark") return styles.dark;
+  return theme === "dark" ? styles.dark : styles.light;
+}
+
 // Check document class for theme (works with next-themes, etc.)
 function getDocumentTheme(): Theme | null {
   if (typeof document === "undefined") return null;
@@ -126,7 +149,14 @@ type MapProps = {
   styles?: {
     light?: MapStyleOption;
     dark?: MapStyleOption;
+    /** Optional satellite basemap; enables the "satellite" `styleId`. */
+    satellite?: MapStyleOption;
   };
+  /**
+   * Explicitly select the basemap (light/dark/satellite). When omitted the
+   * basemap follows the resolved theme (original behavior).
+   */
+  styleId?: MapStyleId;
   /** Map projection type. Use `{ type: "globe" }` for 3D globe view. */
   projection?: MapLibreGL.ProjectionSpecification;
   /**
@@ -172,6 +202,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     className,
     theme: themeProp,
     styles,
+    styleId,
     projection,
     viewport,
     onViewportChange,
@@ -198,6 +229,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     () => ({
       dark: styles?.dark ?? defaultStyles.dark,
       light: styles?.light ?? defaultStyles.light,
+      satellite: styles?.satellite,
     }),
     [styles],
   );
@@ -216,8 +248,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
   useEffect(() => {
     if (!containerRef.current) return;
 
-    const initialStyle =
-      resolvedTheme === "dark" ? mapStyles.dark : mapStyles.light;
+    const initialStyle = pickStyle(styleId, resolvedTheme, mapStyles);
     currentStyleRef.current = initialStyle;
 
     const map = new MapLibreGL.Map({
@@ -297,12 +328,11 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     internalUpdateRef.current = false;
   }, [mapInstance, isControlled, viewport]);
 
-  // Handle style change
+  // Handle style change (theme toggle or explicit styleId selection)
   useEffect(() => {
     if (!mapInstance || !resolvedTheme) return;
 
-    const newStyle =
-      resolvedTheme === "dark" ? mapStyles.dark : mapStyles.light;
+    const newStyle = pickStyle(styleId, resolvedTheme, mapStyles);
 
     if (currentStyleRef.current === newStyle) return;
 
@@ -311,7 +341,7 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
     setIsStyleLoaded(false);
 
     mapInstance.setStyle(newStyle, { diff: true });
-  }, [mapInstance, resolvedTheme, mapStyles, clearStyleTimeout]);
+  }, [mapInstance, resolvedTheme, styleId, mapStyles, clearStyleTimeout]);
 
   const contextValue = useMemo(
     () => ({
@@ -729,6 +759,8 @@ type MapControlsProps = {
   className?: string;
   /** Callback with user coordinates when located */
   onLocate?: (coords: { longitude: number; latitude: number }) => void;
+  /** Extra control groups rendered in the same positioned stack. */
+  children?: ReactNode;
 };
 
 const positionClasses = {
@@ -746,19 +778,19 @@ function ControlGroup({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ControlButton({
-  onClick,
-  label,
-  children,
-  disabled = false,
-}: {
-  onClick: () => void;
-  label: string;
-  children: React.ReactNode;
-  disabled?: boolean;
-}) {
+const ControlButton = forwardRef<
+  HTMLButtonElement,
+  {
+    label: string;
+    children: React.ReactNode;
+  } & Omit<React.ComponentProps<"button">, "children">
+>(function ControlButton(
+  { onClick, label, children, disabled = false, className, ...rest },
+  ref,
+) {
   return (
     <button
+      ref={ref}
       onClick={onClick}
       aria-label={label}
       type="button"
@@ -768,13 +800,15 @@ function ControlButton({
         "hover:bg-accent dark:hover:bg-accent/40",
         "focus-visible:ring-ring focus-visible:ring-2 focus-visible:outline-none focus-visible:ring-inset",
         "disabled:pointer-events-none disabled:opacity-50",
+        className,
       )}
       disabled={disabled}
+      {...rest}
     >
       {children}
     </button>
   );
-}
+});
 
 function MapControls({
   position = "bottom-right",
@@ -784,6 +818,7 @@ function MapControls({
   showFullscreen = false,
   className,
   onLocate,
+  children,
 }: MapControlsProps) {
   const { map } = useMap();
   const [waitingForLocation, setWaitingForLocation] = useState(false);
@@ -880,6 +915,7 @@ function MapControls({
           </ControlButton>
         </ControlGroup>
       )}
+      {children}
     </div>
   );
 }
@@ -1844,9 +1880,11 @@ export {
   MarkerLabel,
   MapPopup,
   MapControls,
+  ControlGroup,
+  ControlButton,
   MapRoute,
   MapArc,
   MapClusterLayer,
 };
 
-export type { MapRef, MapViewport, MapArcDatum, MapArcEvent };
+export type { MapRef, MapViewport, MapArcDatum, MapArcEvent, MapStyleId };

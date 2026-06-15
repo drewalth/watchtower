@@ -1,15 +1,18 @@
 import { useMemo } from "react";
 
-import { Map, MapControls } from "@/components/ui/map";
+import { Map } from "@/components/ui/map";
 
 import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import { TimeRangeControl } from "@/components/analytics/TimeRangeControl";
 import { CoverageLayer } from "@/components/map/CoverageLayer";
 import { FireClusterLayer } from "@/components/map/FireClusterLayer";
+import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MapReadyReporter } from "@/components/map/MapReadyReporter";
 import { SelectedFirePopup } from "@/components/map/SelectedFirePopup";
 import { TowerMarkers } from "@/components/map/TowerMarkers";
+import { useMapStyle } from "@/components/map/useMapStyle";
+import { SATELLITE_STYLE } from "@/lib/basemap";
 import { getLoadedData } from "@/lib/loadable";
 import { denseDailyTotals } from "@/lib/time";
 import { useAppStore } from "@/store/appStore";
@@ -17,6 +20,9 @@ import { useShallow } from "zustand/react/shallow";
 
 // California-ish starting view; fitBounds refines it once towers load.
 const CA_CENTER: [number, number] = [-120.5, 38.5];
+
+// Stable identity so the Map's style effect doesn't re-run every render.
+const MAP_STYLES = { satellite: SATELLITE_STYLE };
 
 export function MapView() {
   // Map layers self-select from the store; MapView only needs the values that
@@ -36,6 +42,8 @@ export function MapView() {
       })),
     );
 
+  const [styleId, setStyleId] = useMapStyle();
+
   const minDate = timeseries?.min_date ?? null;
   const maxDate = timeseries?.max_date ?? null;
 
@@ -48,9 +56,15 @@ export function MapView() {
   );
 
   return (
-    <Map center={CA_CENTER} zoom={6} className="h-full w-full">
+    <Map
+      center={CA_CENTER}
+      zoom={6}
+      styleId={styleId}
+      styles={MAP_STYLES}
+      className="h-full w-full"
+    >
       <MapReadyReporter />
-      <MapControls showZoom showFullscreen />
+      <MapControls styleId={styleId} onStyleChange={setStyleId} />
       <MapLegend />
       <CoverageLayer />
       <TowerMarkers />
