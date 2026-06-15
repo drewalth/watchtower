@@ -24,28 +24,16 @@ import {
 
 import { AnalyticsPanel } from "@/components/analytics/AnalyticsPanel";
 import { TimeRangeControl } from "@/components/analytics/TimeRangeControl";
-import { useJson } from "@/lib/useJson";
+import { getLoadedData, isFailed } from "@/lib/loadable";
+import { denseDailyTotals } from "@/lib/time";
 import {
-  denseDailyTotals,
-  presetWindow,
-  type PresetKey,
-  type TimeWindow,
-} from "@/lib/time";
-import {
-  API,
-  firesQuery,
-  statsQuery,
   type FireCollection,
   type FireProps,
-  type FireStats,
-  type FireTimeseries,
   type PredictionSummary,
-  type RiskLevel,
-  type RiskTimeseries,
   type TowerCollection,
   type TowerProps,
-  type TowerRiskDetail,
 } from "@/lib/types";
+import { useAppStore, type SelectedFire } from "@/store/appStore";
 
 // MapLibre source/layer ids.
 const COVERAGE_SOURCE = "coverage";
@@ -55,35 +43,25 @@ const COVERAGE_LINE = "coverage-line";
 // California-ish starting view; fitBounds refines it once towers load.
 const CA_CENTER: [number, number] = [-120.5, 38.5];
 
-type SelectedFire = { lng: number; lat: number; props: FireProps };
-
-// Initial time window: the last 30 days of available data.
-const DEFAULT_PRESET: PresetKey = "30d";
-
 export function MapView() {
-  const towers = useJson<TowerCollection>(API.towers);
-  const timeseries = useJson<FireTimeseries>(API.firesTimeseries);
-  const risk = useJson<RiskTimeseries>(API.riskTimeseries);
+  // All data now comes from the store as Loadable values; getLoadedData returns
+  // the data for loaded/reloading (so a window refetch keeps old fires drawn)
+  // and null otherwise. UI state (window/preset/selection) lives in the store
+  // too, and its actions drive the window-scoped refetches — no local effects.
+  const towers = useAppStore((s) => getLoadedData(s.towers));
+  const timeseries = useAppStore((s) => getLoadedData(s.timeseries));
+  const risk = useAppStore((s) => getLoadedData(s.risk));
+  const fires = useAppStore((s) => getLoadedData(s.fires));
+  const stats = useAppStore((s) => getLoadedData(s.stats));
+  const timeWindow = useAppStore((s) => s.timeWindow);
+  const preset = useAppStore((s) => s.preset);
+  const selectedFire = useAppStore((s) => s.selectedFire);
+  const setPreset = useAppStore((s) => s.setPreset);
+  const setWindow = useAppStore((s) => s.setWindow);
+  const selectFire = useAppStore((s) => s.selectFire);
 
-  const [timeWindow, setTimeWindow] = useState<TimeWindow | null>(null);
-  const [preset, setPreset] = useState<PresetKey | null>(DEFAULT_PRESET);
-  const [selectedFire, setSelectedFire] = useState<SelectedFire | null>(null);
-
-  // Anchor the initial window to the latest detection (not wall-clock now) once
-  // the timeseries — and with it the data's date range — has loaded.
   const minDate = timeseries?.min_date ?? null;
   const maxDate = timeseries?.max_date ?? null;
-  useEffect(() => {
-    if (minDate && maxDate && !timeWindow) {
-      setTimeWindow(presetWindow(DEFAULT_PRESET, minDate, maxDate));
-    }
-  }, [minDate, maxDate, timeWindow]);
-
-  // Window-scoped fetches re-run whenever the window (and thus the URL) changes.
-  const fires = useJson<FireCollection>(
-    timeWindow ? firesQuery(timeWindow) : null,
-  );
-  const stats = useJson<FireStats>(timeWindow ? statsQuery(timeWindow) : null);
 
   const dense = useMemo(
     () =>
@@ -93,23 +71,13 @@ export function MapView() {
     [timeseries, minDate, maxDate],
   );
 
-  const handlePreset = (key: PresetKey) => {
-    if (!minDate || !maxDate) return;
-    setPreset(key);
-    setTimeWindow(presetWindow(key, minDate, maxDate));
-  };
-  const handleWindow = (next: TimeWindow) => {
-    setPreset(null); // a manual brush is no longer one of the presets
-    setTimeWindow(next);
-  };
-
   return (
     <Map center={CA_CENTER} zoom={6} className="h-full w-full">
       <MapControls showZoom showFullscreen />
       <MapLegend towers={towers} />
       {towers && <CoverageLayer towers={towers} />}
       {towers && <TowerMarkers towers={towers} />}
-      {fires && <FireClusterLayer fires={fires} onSelect={setSelectedFire} />}
+      {fires && <FireClusterLayer fires={fires} onSelect={selectFire} />}
       {timeseries && timeWindow && (
         <>
           <AnalyticsPanel
@@ -122,8 +90,8 @@ export function MapView() {
             dense={dense}
             window={timeWindow}
             preset={preset}
-            onWindowChange={handleWindow}
-            onPresetChange={handlePreset}
+            onWindowChange={setWindow}
+            onPresetChange={setPreset}
           />
         </>
       )}
@@ -131,7 +99,7 @@ export function MapView() {
         <MapPopup
           longitude={selectedFire.lng}
           latitude={selectedFire.lat}
-          onClose={() => setSelectedFire(null)}
+          onClose={() => selectFire(null)}
           closeButton
         >
           <FirePopup props={selectedFire.props} />
@@ -144,7 +112,9 @@ export function MapView() {
 /** A small overlay key for the map's symbols. Coverage rows show only for the
  *  kinds actually present in the data, so the legend matches what's drawn. */
 function MapLegend({ towers }: { towers: TowerCollection | null }) {
-  const kinds = new Set(towers?.features.map((f) => f.properties.coverage_kind));
+  const kinds = new Set(
+    towers?.features.map((f) => f.properties.coverage_kind),
+  );
   const [helpOpen, setHelpOpen] = useState(false);
   return (
     <div className="bg-background/95 text-foreground absolute top-2 left-2 z-10 rounded-md border p-3 text-xs shadow-sm backdrop-blur-sm">
@@ -245,7 +215,13 @@ function CoverageLayer({ towers }: { towers: TowerCollection }) {
       source: COVERAGE_SOURCE,
       paint: {
         "fill-color": byKind as never,
-        "fill-opacity": ["match", ["get", "kind"], "viewshed", 0.18, 0.08] as never,
+        "fill-opacity": [
+          "match",
+          ["get", "kind"],
+          "viewshed",
+          0.18,
+          0.08,
+        ] as never,
       },
     });
     map.addLayer({
@@ -296,6 +272,7 @@ function FireClusterLayer({
 
 /** One clickable marker per tower, with a popup of its details. */
 function TowerMarkers({ towers }: { towers: TowerCollection }) {
+  const loadTowerRisk = useAppStore((s) => s.loadTowerRisk);
   return (
     <>
       {towers.features.map((f) => {
@@ -303,7 +280,10 @@ function TowerMarkers({ towers }: { towers: TowerCollection }) {
         return (
           <MapMarker key={f.properties.id} longitude={lng} latitude={lat}>
             <MarkerContent>
+              {/* The same click that opens the popup kicks off the lazy risk
+                  fetch — an event handler, not a mount effect. */}
               <div
+                onClick={() => loadTowerRisk(f.properties.id)}
                 className="flex size-7 items-center justify-center rounded-full border-2 border-white text-white shadow-md"
                 style={{ backgroundColor: riskColor(f.properties.risk_level) }}
               >
@@ -328,7 +308,9 @@ function TowerPopup({ props }: { props: TowerProps }) {
   return (
     <div className="space-y-1 text-sm">
       <div className="font-semibold">{props.name}</div>
-      <div className="text-muted-foreground">Elevation: {props.elevation_m} m</div>
+      <div className="text-muted-foreground">
+        Elevation: {props.elevation_m} m
+      </div>
       <div className="text-muted-foreground">Coverage: {coverage}</div>
       <div className="font-medium">Fires in range: {props.fire_count}</div>
       <TowerRiskPanel towerId={props.id} />
@@ -340,8 +322,20 @@ function TowerPopup({ props }: { props: TowerProps }) {
  *  contributing FWI-system factors, and a small recent-days trend. Fetched only
  *  when the popup opens. */
 function TowerRiskPanel({ towerId }: { towerId: number }) {
-  const detail = useJson<TowerRiskDetail>(API.towerRisk(towerId));
-  if (!detail) return <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">Loading risk…</div>;
+  const risk = useAppStore((s) => s.towerRisk[towerId]);
+  if (risk && isFailed(risk))
+    return (
+      <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">
+        Couldn&rsquo;t load risk.
+      </div>
+    );
+  const detail = risk ? getLoadedData(risk) : null;
+  if (!detail)
+    return (
+      <div className="text-muted-foreground mt-2 border-t pt-2 text-xs">
+        Loading risk…
+      </div>
+    );
 
   const latest = detail.series[0];
   if (!latest) {
@@ -390,7 +384,9 @@ function TowerRiskPanel({ towerId }: { towerId: number }) {
       <ModelPrediction prediction={detail.prediction} />
 
       <div className="mt-2">
-        <div className="text-muted-foreground mb-0.5 text-[10px]">Last {recent.length} days</div>
+        <div className="text-muted-foreground mb-0.5 text-[10px]">
+          Last {recent.length} days
+        </div>
         <div className="flex items-end gap-0.5" style={{ height: 24 }}>
           {recent.map((d) => (
             <span
@@ -437,7 +433,9 @@ function FirePopup({ props }: { props: FireProps }) {
       <div className="font-semibold text-[#d7301f]">Fire detection</div>
       <div className="text-muted-foreground">Source: {props.source}</div>
       <div className="text-muted-foreground">Acquired: {props.acquired_at}</div>
-      <div className="text-muted-foreground">Confidence: {props.confidence}</div>
+      <div className="text-muted-foreground">
+        Confidence: {props.confidence}
+      </div>
       <div className="text-muted-foreground">FRP: {props.frp ?? "n/a"} MW</div>
     </div>
   );

@@ -1,9 +1,9 @@
-import { MapView } from "@/components/MapView";
+import { AppInitializer } from "@/components/AppInitializer";
 
 export function App() {
   return (
     <div className="h-screen w-screen">
-      <MapView />
+      <AppInitializer />
     </div>
   );
 }

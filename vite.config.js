@@ -28,4 +28,9 @@ export default defineConfig({
       input: { main: path.resolve(__dirname, './assets/main.tsx') },
     },
   },
+  test: {
+    // Store logic is pure data + fetch orchestration — no DOM needed.
+    environment: 'node',
+    include: ['assets/**/*.test.{ts,tsx}'],
+  },
 });
