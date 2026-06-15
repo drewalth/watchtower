@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
 
+import type { MapViewport } from "@/components/ui/map";
+
 import {
   type Loadable,
   getNextLoadableState,
@@ -44,6 +46,11 @@ interface AppState {
   timeWindow: TimeWindow | null;
   preset: PresetKey | null;
   selectedFire: SelectedFire | null;
+  /** Last known map camera (center/zoom/bearing/pitch). Updated on gesture end
+   *  and re-applied across basemap switches so changing the style doesn't snap
+   *  the view back to the new style's default. Persisted imperatively (no
+   *  selector subscribes to it) so pan/zoom never re-renders the map subtree. */
+  viewport: MapViewport | null;
 
   /** Latched once the map-critical data has loaded — the data half of the
    *  reveal gate. Never flips back, so a later window refetch (fires →
@@ -66,6 +73,8 @@ interface AppActions {
   setMapReady: () => void;
   setPreset: (preset: PresetKey) => void;
   setWindow: (window: TimeWindow) => void;
+  /** Record the current map camera (called on gesture end / style restore). */
+  setViewport: (viewport: MapViewport) => void;
   loadTowerRisk: (id: number) => void;
   selectFire: (fire: SelectedFire | null) => void;
 }
@@ -217,6 +226,7 @@ export const useAppStore = create<AppStore>()(
       timeWindow: null,
       preset: null,
       selectedFire: null,
+      viewport: null,
       ready: false,
       mapReady: false,
 
@@ -303,6 +313,11 @@ export const useAppStore = create<AppStore>()(
       selectFire: (fire) =>
         set((s) => {
           s.selectedFire = fire;
+        }),
+
+      setViewport: (viewport) =>
+        set((s) => {
+          s.viewport = viewport;
         }),
 
       setMapReady: () =>

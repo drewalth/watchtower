@@ -9,6 +9,7 @@ import { FireClusterLayer } from "@/components/map/FireClusterLayer";
 import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MapReadyReporter } from "@/components/map/MapReadyReporter";
+import { MapViewportSync } from "@/components/map/MapViewportSync";
 import { SelectedFirePopup } from "@/components/map/SelectedFirePopup";
 import { TowerMarkers } from "@/components/map/TowerMarkers";
 import { useMapStyle } from "@/components/map/useMapStyle";
@@ -64,6 +65,7 @@ export function MapView() {
       className="h-full w-full"
     >
       <MapReadyReporter />
+      <MapViewportSync styleId={styleId} />
       <MapControls styleId={styleId} onStyleChange={setStyleId} />
       <MapLegend />
       <CoverageLayer />
