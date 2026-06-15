@@ -51,7 +51,11 @@ export function AnalyticsPanel({
         </span>
         <span className="text-muted-foreground flex items-center gap-2 text-xs">
           <span className="tabular-nums">{total.toLocaleString()} fires</span>
-          {open ? <ChevronUp className="size-4" /> : <ChevronDown className="size-4" />}
+          {open ? (
+            <ChevronUp className="size-4" />
+          ) : (
+            <ChevronDown className="size-4" />
+          )}
         </span>
       </button>
 

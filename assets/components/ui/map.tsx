@@ -1290,8 +1290,7 @@ function buildArcCoordinates(
   // longitudes may fall outside [-180, 180]; MapLibre renders them correctly
   // on the globe projection, and on mercator when world copies are enabled.
   const rawDx = xTo - x0;
-  const x2 =
-    rawDx > 180 ? xTo - 360 : rawDx < -180 ? xTo + 360 : xTo;
+  const x2 = rawDx > 180 ? xTo - 360 : rawDx < -180 ? xTo + 360 : xTo;
   const dx = x2 - x0;
   const dy = y2 - y0;
   const distance = Math.hypot(dx, dy);

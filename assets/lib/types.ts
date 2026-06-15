@@ -81,12 +81,7 @@ export interface RiskTimeseries {
 export type CoverageKind = "viewshed" | "circle";
 
 /** Canadian FWI danger classes, low → extreme (towers/models.py RiskLevel). */
-export type RiskLevel =
-  | "low"
-  | "moderate"
-  | "high"
-  | "very_high"
-  | "extreme";
+export type RiskLevel = "low" | "moderate" | "high" | "very_high" | "extreme";
 
 /** Latest ML ignition prediction; every field null until a model is trained. */
 export interface PredictionSummary {
@@ -140,5 +135,11 @@ export interface FireProps {
   acquired_at: string;
 }
 
-export type TowerCollection = GeoJSON.FeatureCollection<GeoJSON.Point, TowerProps>;
-export type FireCollection = GeoJSON.FeatureCollection<GeoJSON.Point, FireProps>;
+export type TowerCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  TowerProps
+>;
+export type FireCollection = GeoJSON.FeatureCollection<
+  GeoJSON.Point,
+  FireProps
+>;

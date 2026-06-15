@@ -30,7 +30,10 @@ export function RiskTrendCard({ riskRows }: { riskRows: RiskTimeseriesDay[] }) {
       ) : (
         <>
           <ChartContainer config={config} className="h-[96px] w-full">
-            <LineChart data={riskRows} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
+            <LineChart
+              data={riskRows}
+              margin={{ left: 0, right: 0, top: 4, bottom: 0 }}
+            >
               <CartesianGrid vertical={false} strokeDasharray="3 3" />
               <XAxis dataKey="date" hide />
               <YAxis yAxisId="risk" domain={[0, 100]} hide />
@@ -80,7 +83,10 @@ export function RiskTrendCard({ riskRows }: { riskRows: RiskTimeseriesDay[] }) {
 function Legend({ color, label }: { color: string; label: string }) {
   return (
     <span className="flex items-center gap-1">
-      <span className="h-0.5 w-3 rounded-full" style={{ backgroundColor: color }} />
+      <span
+        className="h-0.5 w-3 rounded-full"
+        style={{ backgroundColor: color }}
+      />
       {label}
     </span>
   );

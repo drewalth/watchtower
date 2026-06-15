@@ -32,7 +32,10 @@ export function SourceBreakdownCard({
         <EmptyState />
       ) : (
         <div className="flex items-center gap-3">
-          <ChartContainer config={config} className="h-[96px] w-[96px] shrink-0">
+          <ChartContainer
+            config={config}
+            className="h-[96px] w-[96px] shrink-0"
+          >
             <PieChart>
               <ChartTooltip content={<ChartTooltipContent nameKey="label" />} />
               <Pie
@@ -56,8 +59,12 @@ export function SourceBreakdownCard({
                   className="size-2.5 shrink-0 rounded-full"
                   style={{ backgroundColor: s.fill }}
                 />
-                <span className="text-muted-foreground truncate">{s.label}</span>
-                <span className="ml-auto font-medium tabular-nums">{s.count}</span>
+                <span className="text-muted-foreground truncate">
+                  {s.label}
+                </span>
+                <span className="ml-auto font-medium tabular-nums">
+                  {s.count}
+                </span>
               </li>
             ))}
           </ul>

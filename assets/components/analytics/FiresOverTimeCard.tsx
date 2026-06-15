@@ -28,7 +28,10 @@ export function FiresOverTimeCard({
         <EmptyState />
       ) : (
         <ChartContainer config={config} className="h-[90px] w-full">
-          <AreaChart data={data} margin={{ left: 0, right: 0, top: 4, bottom: 0 }}>
+          <AreaChart
+            data={data}
+            margin={{ left: 0, right: 0, top: 4, bottom: 0 }}
+          >
             <CartesianGrid vertical={false} strokeDasharray="3 3" />
             <XAxis dataKey="date" hide />
             <ChartTooltip

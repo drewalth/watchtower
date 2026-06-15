@@ -22,7 +22,9 @@ export function AnalyticsCard({
 
 export function EmptyState({ label = "No data in range" }: { label?: string }) {
   return (
-    <div className="text-muted-foreground py-3 text-center text-xs">{label}</div>
+    <div className="text-muted-foreground py-3 text-center text-xs">
+      {label}
+    </div>
   );
 }
 

@@ -4,7 +4,13 @@
 import type { FireTimeseriesDay } from "@/lib/types";
 
 /** Palette for per-source series/slices (fire-red first, then cool hues). */
-export const SOURCE_COLORS = ["#ef6548", "#2b8cbe", "#f9c74f", "#9d4edd", "#43aa8b"];
+export const SOURCE_COLORS = [
+  "#ef6548",
+  "#2b8cbe",
+  "#f9c74f",
+  "#9d4edd",
+  "#43aa8b",
+];
 
 /** Filter date-keyed rows to an inclusive [start, end] window (ISO strings sort). */
 export function inWindow<T extends { date: string }>(
@@ -34,7 +40,8 @@ export function sourceTotals(
   rows: FireTimeseriesDay[],
 ): { source: string; count: number }[] {
   const totals = new Map<string, number>();
-  for (const r of rows) totals.set(r.source, (totals.get(r.source) ?? 0) + r.count);
+  for (const r of rows)
+    totals.set(r.source, (totals.get(r.source) ?? 0) + r.count);
   return [...totals.entries()]
     .map(([source, count]) => ({ source, count }))
     .sort((a, b) => b.count - a.count);

@@ -37,7 +37,8 @@ export function TimeRangeControl({
     dense.findIndex((d) => d.date >= window.start),
   );
   const afterEnd = dense.findIndex((d) => d.date > window.end);
-  const endIndex = afterEnd === -1 ? dense.length - 1 : Math.max(startIndex, afterEnd - 1);
+  const endIndex =
+    afterEnd === -1 ? dense.length - 1 : Math.max(startIndex, afterEnd - 1);
 
   const handleBrush = (range: { startIndex?: number; endIndex?: number }) => {
     if (range.startIndex == null || range.endIndex == null) return;
@@ -74,7 +75,10 @@ export function TimeRangeControl({
       </div>
 
       <ChartContainer config={config} className="h-[64px] w-full">
-        <BarChart data={dense} margin={{ left: 0, right: 0, top: 2, bottom: 0 }}>
+        <BarChart
+          data={dense}
+          margin={{ left: 0, right: 0, top: 2, bottom: 0 }}
+        >
           <ChartTooltip
             content={
               <ChartTooltipContent
