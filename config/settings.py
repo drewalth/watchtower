@@ -25,11 +25,15 @@ INSTALLED_APPS = [
     # admin map widgets.
     "django.contrib.gis",
     # Frontend: serves the Vite-built React bundle (dev server in DEBUG,
-    # hashed manifest assets in production) and live-reloads on changes.
+    # hashed manifest assets in production).
     "django_vite",
-    "django_browser_reload",
     "towers",
 ]
+if DEBUG:
+    # Browser live-reload — dev only. Its AppConfig.ready() registers autoreload
+    # signal receivers that are dead weight under gunicorn, so keep the app out
+    # of production entirely (the matching middleware is gated below too).
+    INSTALLED_APPS.append("django_browser_reload")
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
