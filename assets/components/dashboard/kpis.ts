@@ -59,8 +59,9 @@ export function computeKpis(input: KpiInputs): Kpis {
     ? series.filter((d) => d.date >= window.start && d.date <= window.end)
     : series;
   for (let i = inWin.length - 1; i >= 0; i--) {
-    if (inWin[i].mean_ignition != null) {
-      meanIgnitionPct = Math.round(inWin[i].mean_ignition! * 100);
+    const row = inWin[i];
+    if (row && row.mean_ignition != null) {
+      meanIgnitionPct = Math.round(row.mean_ignition * 100);
       break;
     }
   }

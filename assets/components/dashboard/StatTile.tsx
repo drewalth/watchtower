@@ -19,7 +19,7 @@ export function StatTile({
 }: {
   label: string;
   value: ReactNode;
-  unit?: string;
+  unit?: string | undefined;
   sublabel?: string;
   sparkline?: number[];
   children?: ReactNode;   // e.g. RiskDistributionBar
