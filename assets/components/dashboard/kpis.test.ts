@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { computeKpis } from "./kpis";
+import { shiftDays } from "@/lib/time";
 import type {
   FireCollection, FireStats, FireTimeseries, RiskTimeseries, TowerCollection,
 } from "@/lib/types";
@@ -79,6 +80,40 @@ describe("computeKpis", () => {
   it("uses the latest non-null mean ignition in window as a percent", () => {
     const k = computeKpis({ towers, fires, stats, risk, timeseries, window });
     expect(k.meanIgnitionPct).toBe(23);
+  });
+  it("builds a dense sparkline of per-day totals (sources collapsed) over the window", () => {
+    const k = computeKpis({ towers, fires, stats, risk, timeseries, window });
+    // 2026-06-13: 2, 2026-06-14: 5, 2026-06-15: 1 (A+B collapsed per day).
+    expect(k.activeFiresSparkline).toEqual([2, 5, 1]);
+  });
+  it("zero-fills missing days and caps the sparkline at the last 14 days", () => {
+    const longTs = {
+      series: Array.from({ length: 20 }, (_, i) => ({
+        date: shiftDays("2026-06-01", i),
+        source: "A",
+        count: i,
+      })),
+      min_date: "2026-06-01",
+      max_date: "2026-06-20",
+    } as FireTimeseries;
+    const longWin = { start: "2026-06-01", end: "2026-06-20" };
+    const k = computeKpis({
+      towers, fires, stats, risk, timeseries: longTs, window: longWin,
+    });
+    // 20 dense days → sliced to the trailing 14 (counts 6..19).
+    expect(k.activeFiresSparkline).toEqual([
+      6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+    ]);
+  });
+  it("returns an empty sparkline when timeseries or window is missing", () => {
+    expect(
+      computeKpis({ towers, fires, stats, risk, timeseries, window: null })
+        .activeFiresSparkline,
+    ).toEqual([]);
+    expect(
+      computeKpis({ towers, fires, stats, risk, timeseries: null, window })
+        .activeFiresSparkline,
+    ).toEqual([]);
   });
   it("is null-safe when everything is empty", () => {
     const k = computeKpis({ towers: null, fires: null, stats: null, risk: null, timeseries: null, window: null });
