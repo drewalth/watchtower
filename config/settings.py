@@ -33,15 +33,19 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # WhiteNoise serves the collected static bundle when DEBUG=0. Must sit
+    # directly after SecurityMiddleware and before everything else.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    # Reloads the browser when templates/static/Python change (DEBUG only).
-    "django_browser_reload.middleware.BrowserReloadMiddleware",
 ]
+if DEBUG:
+    # Reloads the browser when templates/static/Python change (dev only).
+    MIDDLEWARE.append("django_browser_reload.middleware.BrowserReloadMiddleware")
 
 ROOT_URLCONF = "config.urls"
 
@@ -90,8 +94,20 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "static/"
+# collectstatic target — what WhiteNoise serves in production (DEBUG=0).
+# Must be distinct from STATICFILES_DIRS below.
+STATIC_ROOT = BASE_DIR / "staticfiles"
 # Vite writes its built bundle + manifest here; also where collectstatic looks.
 STATICFILES_DIRS = [BASE_DIR / "static"]
+
+# Django 5.2 STORAGES dict (do NOT also set the legacy STATICFILES_STORAGE).
+# Use WhiteNoise's COMPRESSED (non-manifest) backend: Vite already
+# content-hashes filenames, and the Manifest variant's reference-rewriting
+# crashes collectstatic on Vite's source-map references.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.CompressedStaticFilesStorage"},
+}
 
 # django-vite: in DEBUG, assets load from the Vite dev server (with HMR) on
 # :5173; otherwise they're resolved from the hashed build manifest.
