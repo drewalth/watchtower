@@ -7,6 +7,7 @@ import { Map } from "@/components/ui/map";
 import { CoverageLayer } from "@/components/map/CoverageLayer";
 import { FilterSearchControl } from "@/components/map/FilterSearchControl";
 import { FireClusterLayer } from "@/components/map/FireClusterLayer";
+import { TowerFocuser } from "@/components/map/TowerFocuser";
 import { MapControls } from "@/components/map/MapControls";
 import { MapLegend } from "@/components/map/MapLegend";
 import { MapReadyReporter } from "@/components/map/MapReadyReporter";
@@ -51,12 +52,13 @@ export function MapView() {
       <MapViewportSync styleId={styleId} />
       <MapControls styleId={styleId} onStyleChange={setStyleId} />
       <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-2">
+        <FilterSearchControl />
         <MapLegend />
       </div>
       <CoverageLayer />
       <TowerMarkers />
       <FireClusterLayer />
-      <FilterSearchControl />
+      <TowerFocuser />
       <SelectedFirePopup />
     </Map>
   );

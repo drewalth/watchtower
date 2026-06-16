@@ -1,8 +1,11 @@
-/** Stub — replaced in Task 11 (tower filters + sortable leaderboard). */
+import { TowerFilters } from "./TowerFilters";
+import { TowerLeaderboard } from "./TowerLeaderboard";
+
 export function TowersTab() {
   return (
-    <div className="px-2 py-6 text-center text-xs text-muted-foreground">
-      Tower filters and leaderboard arrive in the next step.
+    <div className="flex flex-col gap-3">
+      <TowerFilters />
+      <TowerLeaderboard />
     </div>
   );
 }
