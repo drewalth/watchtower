@@ -1,0 +1,13 @@
+.git
+.venv
+node_modules
+static
+staticfiles
+models
+.pytest_cache
+.ruff_cache
+__pycache__
+*.pyc
+.env
+.DS_Store
+docs
