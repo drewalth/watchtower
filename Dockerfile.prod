@@ -1,0 +1,54 @@
+# Multi-stage production image. Stage 1 builds the React bundle with Node so the
+# final image never ships Node. Stage 2 is the GeoDjango runtime (GDAL/GEOS/PROJ)
+# that copies the built assets in and runs gunicorn. Dev keeps using ./Dockerfile.
+
+# ---- Stage 1: build the Vite/React bundle ----
+FROM node:24-slim AS assets
+WORKDIR /app
+# Lockfile first for layer caching.
+COPY package.json package-lock.json ./
+RUN npm ci
+COPY vite.config.ts tsconfig.json components.json ./
+COPY assets/ ./assets/
+# vite.config sets outDir=./static (emptyOutDir:false), manifest:true
+#   -> static/<hashed bundle> + static/.vite/manifest.json
+RUN npm run build
+
+# ---- Stage 2: GeoDjango runtime ----
+FROM python:3.12-slim AS runtime
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    UV_PROJECT_ENVIRONMENT=/opt/venv \
+    UV_LINK_MODE=copy \
+    PATH="/opt/venv/bin:$PATH" \
+    DJANGO_SETTINGS_MODULE=config.settings \
+    DJANGO_DEBUG=0
+
+# GDAL/GEOS/PROJ for GeoDjango; gdal-bin is REQUIRED at runtime because
+# towers/viewshed.py shells out to gdalbuildvrt/gdalwarp/gdal_viewshed.
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        binutils \
+        libproj-dev \
+        gdal-bin \
+        libgdal-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
+WORKDIR /app
+# Runtime deps only (no pytest/ruff). gunicorn + whitenoise must be in the lock.
+COPY pyproject.toml uv.lock ./
+RUN uv sync --frozen --no-dev
+
+COPY . .
+# Built bundle + manifest from stage 1 overwrite the (gitignored) source static/.
+COPY --from=assets /app/static/ ./static/
+
+# Collect into STATIC_ROOT at build time (immutable image, fail-fast).
+RUN python manage.py collectstatic --noinput
+
+EXPOSE 8000
+# Default CMD for `docker run`; compose overrides --workers via env.
+CMD ["gunicorn", "config.wsgi:application", \
+     "--bind", "0.0.0.0:8000", "--workers", "3", \
+     "--timeout", "120", "--access-logfile", "-", "--error-logfile", "-"]
