@@ -54,7 +54,7 @@ export function InitScreen() {
     { label: "Active fires", state: fires, critical: true },
     // The map mounts at launch and can't enter a `failed` state here, so it's a
     // simple spinner-until-painted — but it gates the reveal just like the data.
-    { label: "Rendering map", state: mapReady ? "loaded" : "loading", critical: true },
+    { label: "Preparing map", state: mapReady ? "loaded" : "loading", critical: true },
     { label: "Risk trends", state: risk, critical: false },
     { label: "Per-tower stats", state: stats, critical: false },
   ];

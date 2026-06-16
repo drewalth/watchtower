@@ -1,3 +1,5 @@
+import { Card } from "@/components/ui/card";
+
 import { MapView } from "@/components/map/MapView";
 import { TopBar } from "./TopBar";
 import { KpiStrip } from "./KpiStrip";
@@ -14,8 +16,10 @@ export function DashboardShell() {
       <TopBar />
       <KpiStrip />
       <div className="relative flex min-h-0 overflow-hidden">
-        <div className="relative min-w-0 flex-1">
+        <div className="relative min-w-0 flex-1 rounded-xl p-2">
+          <Card className="h-full w-full p-0 overflow-hidden">
           <MapView />
+          </Card>
         </div>
         <AnalyticsDock />
       </div>
