@@ -75,8 +75,8 @@ export interface FiltersSlice {
   /** Client-side filters applied to the loaded towers + fires. */
   filters: MapFilters;
   /** Transient: true while the debounced text search is settling — drives the
-   *  full-screen reloading overlay only. Set by FilterSearchControl off the
-   *  debounce edge; not derived from any Loadable. */
+   *  slim TopProgressBar at the top of the dashboard. Set by FilterSearchControl
+   *  off the debounce edge; not derived from any Loadable. */
   isFiltering: boolean;
 
   setSearchText: (text: string) => void;

@@ -7,15 +7,25 @@ export function FreshnessPill() {
   const run = useLatestIngestionRun();
   const running = run?.status === "running";
   const stamp = run?.finished_at ?? run?.started_at ?? null;
+  const label = running
+    ? "Data refreshing"
+    : stamp
+      ? `Data updated ${relative(stamp)}`
+      : "Data freshness unknown";
   return (
-    <div className="flex items-center gap-1.5 rounded-full border border-surface-border bg-muted/40 px-2.5 py-1 text-xs">
+    <div
+      role="status"
+      aria-live="polite"
+      className="flex items-center gap-1.5 rounded-full border border-surface-border bg-muted/40 px-2.5 py-1 text-xs"
+    >
       <span
         className={cn(
           "size-1.5 rounded-full",
           running ? "animate-pulse bg-ember" : "bg-risk-low",
         )}
       />
-      <span className="hidden text-muted-foreground sm:inline">
+      <span className="sr-only">{label}</span>
+      <span aria-hidden className="hidden text-muted-foreground sm:inline">
         {running ? "refreshing…" : stamp ? `updated ${relative(stamp)}` : "—"}
       </span>
     </div>

@@ -43,7 +43,7 @@ export function TowerLeaderboard() {
             key={s.key}
             onClick={() => setSort(s.key)}
             className={cn(
-              "flex-1 rounded px-1.5 py-1 text-[0.7rem] font-medium transition-colors",
+              "flex-1 rounded px-1.5 py-1 text-[0.7rem] font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
               sort === s.key
                 ? "bg-ember text-ember-foreground"
                 : "text-muted-foreground hover:text-foreground",
@@ -58,7 +58,7 @@ export function TowerLeaderboard() {
           <li key={r.id}>
             <button
               onClick={() => focusTower(r.id)}
-              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent"
+              className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs hover:bg-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
             >
               <span
                 className="size-2 shrink-0 rounded-full"

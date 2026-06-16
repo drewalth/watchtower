@@ -32,6 +32,17 @@ export function AnalyticsDock() {
     localStorage.setItem(KEY, JSON.stringify({ open, tab }));
   }, [open, tab]);
 
+  // Below lg the open dock overlays the map; let Escape dismiss it so the map
+  // controls underneath stay reachable.
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setOpen(false);
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
   if (!open) {
     return (
       <Button
@@ -46,37 +57,47 @@ export function AnalyticsDock() {
     );
   }
   return (
-    <GlassPanel className="absolute inset-y-2 right-2 z-20 flex w-[340px] max-w-[92vw] flex-col rounded-xl lg:static lg:inset-auto lg:z-10 lg:m-2 lg:ml-0">
-      <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
-        <div className="flex items-center justify-between gap-2 border-b border-surface-border p-2">
-          <TabsList className="bg-muted/40">
-            <TabsTrigger value="overview">Overview</TabsTrigger>
-            <TabsTrigger value="towers">Towers</TabsTrigger>
-            <TabsTrigger value="risk">Risk</TabsTrigger>
-          </TabsList>
-          <Button
-            variant="ghost"
-            size="icon-sm"
-            aria-label="Collapse analytics"
-            onClick={() => setOpen(false)}
-          >
-            <PanelRightClose className="size-4" />
-          </Button>
-        </div>
-        <ScrollArea className="min-h-0 flex-1">
-          <div className="p-2">
-            <TabsContent value="overview" className="mt-0">
-              <OverviewTab />
-            </TabsContent>
-            <TabsContent value="towers" className="mt-0">
-              <TowersTab />
-            </TabsContent>
-            <TabsContent value="risk" className="mt-0">
-              <RiskTab />
-            </TabsContent>
+    <>
+      {/* sub-lg scrim: dims the map and dismisses the dock on an outside click so
+          the map controls underneath stay reachable. Hidden at lg+ where the dock
+          is a static sibling that covers nothing. */}
+      <div
+        className="absolute inset-0 z-10 bg-black/20 lg:hidden"
+        aria-hidden
+        onClick={() => setOpen(false)}
+      />
+      <GlassPanel className="absolute inset-y-2 right-2 z-20 flex w-[340px] max-w-[92vw] flex-col rounded-xl lg:static lg:inset-auto lg:z-10 lg:m-2 lg:ml-0">
+        <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
+          <div className="flex items-center justify-between gap-2 border-b border-surface-border p-2">
+            <TabsList className="bg-muted/40">
+              <TabsTrigger value="overview">Overview</TabsTrigger>
+              <TabsTrigger value="towers">Towers</TabsTrigger>
+              <TabsTrigger value="risk">Risk</TabsTrigger>
+            </TabsList>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label="Collapse analytics"
+              onClick={() => setOpen(false)}
+            >
+              <PanelRightClose className="size-4" />
+            </Button>
           </div>
-        </ScrollArea>
-      </Tabs>
-    </GlassPanel>
+          <ScrollArea className="min-h-0 flex-1">
+            <div className="p-2">
+              <TabsContent value="overview" className="mt-0">
+                <OverviewTab />
+              </TabsContent>
+              <TabsContent value="towers" className="mt-0">
+                <TowersTab />
+              </TabsContent>
+              <TabsContent value="risk" className="mt-0">
+                <RiskTab />
+              </TabsContent>
+            </div>
+          </ScrollArea>
+        </Tabs>
+      </GlassPanel>
+    </>
   );
 }

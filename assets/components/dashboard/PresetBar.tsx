@@ -14,7 +14,7 @@ export function PresetBar() {
           key={p.key}
           onClick={() => setPreset(p.key)}
           className={cn(
-            "rounded px-2 py-1 text-xs font-medium transition-colors",
+            "rounded px-2 py-1 text-xs font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
             preset === p.key
               ? "bg-ember text-ember-foreground"
               : "text-muted-foreground hover:bg-accent hover:text-foreground",
