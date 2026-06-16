@@ -1,6 +1,7 @@
 import { useShallow } from "zustand/react/shallow";
 
 import { MapPopup } from "@/components/ui/map";
+import { formatDay } from "@/lib/datetime";
 import { getLoadedData, isFailed } from "@/lib/loadable";
 import { RISK_COLORS, RISK_LABELS } from "@/lib/mapStyle";
 import { type PredictionSummary, type TowerProps } from "@/lib/types";
@@ -105,7 +106,7 @@ function TowerRiskPanel({ towerId }: { towerId: number }) {
         </span>
       </div>
       <div className="text-muted-foreground mt-0.5 text-xs">
-        Score {Math.round(latest.risk_score)}/100 · {latest.date}
+        Score {Math.round(latest.risk_score)}/100 · {formatDay(latest.date)}
         {latest.snow_covered ? " · snow-covered" : ""}
       </div>
 
@@ -128,7 +129,7 @@ function TowerRiskPanel({ towerId }: { towerId: number }) {
           {recent.map((d) => (
             <span
               key={d.date}
-              title={`${d.date}: ${RISK_LABELS[d.risk_level]} (${Math.round(d.risk_score)})`}
+              title={`${formatDay(d.date)}: ${RISK_LABELS[d.risk_level]} (${Math.round(d.risk_score)})`}
               className="flex-1 rounded-sm"
               style={{
                 backgroundColor: RISK_COLORS[d.risk_level],

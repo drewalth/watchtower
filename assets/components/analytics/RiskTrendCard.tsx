@@ -6,10 +6,10 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { formatDay } from "@/lib/datetime";
 import type { RiskTimeseriesDay } from "@/lib/types";
 
 import { AnalyticsCard, EmptyState } from "./AnalyticsCard";
-import { shortDate } from "./shared";
 
 const RISK_COLOR = "#f3722c";
 const IGNITION_COLOR = "#9d4edd";
@@ -41,7 +41,7 @@ export function RiskTrendCard({ riskRows }: { riskRows: RiskTimeseriesDay[] }) {
               <ChartTooltip
                 content={
                   <ChartTooltipContent
-                    labelFormatter={(value) => shortDate(String(value))}
+                    labelFormatter={(value) => formatDay(String(value))}
                   />
                 }
               />

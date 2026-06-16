@@ -6,10 +6,10 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { formatDay } from "@/lib/datetime";
 import type { TimeWindow } from "@/lib/time";
 
 import type { DayCount } from "./shared";
-import { shortDate } from "./shared";
 
 const config = {
   count: { label: "Fires", color: "var(--color-ember)" },
@@ -17,7 +17,9 @@ const config = {
 
 /** Brushable fires-per-day histogram. Presentation-only: the brush writes a
  *  `TimeWindow` via `onWindowChange`; presets + the window label live in the
- *  containing TimelineDock. Bars/brush are ember-tinted to match the identity. */
+ *  containing TimelineDock. Bars/brush handles are ember-tinted; the brush track
+ *  fill uses `--color-muted` so it reads in both light and dark themes (the
+ *  recharts default is a hardcoded white that looks harsh in dark mode). */
 export function TimeRangeControl({
   dense,
   window,
@@ -50,7 +52,7 @@ export function TimeRangeControl({
         <ChartTooltip
           content={
             <ChartTooltipContent
-              labelFormatter={(value) => shortDate(String(value))}
+              labelFormatter={(value) => formatDay(String(value))}
             />
           }
         />
@@ -60,10 +62,11 @@ export function TimeRangeControl({
           height={18}
           travellerWidth={8}
           stroke="var(--color-ember)"
+          fill="var(--color-muted)"
           startIndex={startIndex}
           endIndex={endIndex}
           onChange={handleBrush}
-          tickFormatter={(value) => shortDate(String(value))}
+          tickFormatter={(value) => formatDay(String(value))}
         />
       </BarChart>
     </ChartContainer>

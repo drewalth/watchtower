@@ -1,4 +1,5 @@
 import { useLatestIngestionRun } from "@/hooks/useLatestIngestionRun";
+import { formatRelative } from "@/lib/datetime";
 import { cn } from "@/lib/utils";
 
 /** Persistent data-freshness indicator: a pulsing dot while a refresh runs, else
@@ -10,7 +11,7 @@ export function FreshnessPill() {
   const label = running
     ? "Data refreshing"
     : stamp
-      ? `Data updated ${relative(stamp)}`
+      ? `Data updated ${formatRelative(stamp)}`
       : "Data freshness unknown";
   return (
     <div
@@ -26,16 +27,8 @@ export function FreshnessPill() {
       />
       <span className="sr-only">{label}</span>
       <span aria-hidden className="hidden text-muted-foreground sm:inline">
-        {running ? "refreshing…" : stamp ? `updated ${relative(stamp)}` : "—"}
+        {running ? "refreshing…" : stamp ? `updated ${formatRelative(stamp)}` : "—"}
       </span>
     </div>
   );
-}
-
-function relative(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60000));
-  if (mins < 1) return "just now";
-  if (mins < 60) return `${mins}m ago`;
-  const h = Math.round(mins / 60);
-  return h < 24 ? `${h}h ago` : `${Math.round(h / 24)}d ago`;
 }

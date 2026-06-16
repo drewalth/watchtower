@@ -1,4 +1,5 @@
 import { MapPopup } from "@/components/ui/map";
+import { formatInstant } from "@/lib/datetime";
 import { type FireProps } from "@/lib/types";
 import { useAppStore } from "@/store/appStore";
 import { useShallow } from "zustand/react/shallow";
@@ -32,7 +33,9 @@ function FirePopup({ props }: { props: FireProps }) {
     <div className="space-y-1 text-sm">
       <div className="font-semibold text-[#d7301f]">Fire detection</div>
       <div className="text-muted-foreground">Source: {props.source}</div>
-      <div className="text-muted-foreground">Acquired: {props.acquired_at}</div>
+      <div className="text-muted-foreground">
+        Acquired: {formatInstant(props.acquired_at)}
+      </div>
       <div className="text-muted-foreground">
         Confidence: {props.confidence}
       </div>

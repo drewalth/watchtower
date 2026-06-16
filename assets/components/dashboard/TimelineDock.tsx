@@ -1,8 +1,8 @@
 import { useShallow } from "zustand/react/shallow";
 
 import { TimeRangeControl } from "@/components/analytics/TimeRangeControl";
-import { shortDate } from "@/components/analytics/shared";
 import { Button } from "@/components/ui/button";
+import { formatDay } from "@/lib/datetime";
 import { getLoadedData } from "@/lib/loadable";
 import { denseDailyTotals } from "@/lib/time";
 import { useAppStore } from "@/store/appStore";
@@ -43,7 +43,7 @@ export function TimelineDock() {
     <GlassPanel className="z-20 flex items-center gap-3 rounded-none border-x-0 border-b-0 px-3 py-1.5">
       <div className="flex shrink-0 items-center gap-2">
         <span className="text-xs tabular-nums text-muted-foreground">
-          {shortDate(timeWindow.start)} – {shortDate(timeWindow.end)}
+          {formatDay(timeWindow.start)} – {formatDay(timeWindow.end)}
         </span>
         <Button variant="ghost" size="xs" onClick={() => setPreset("all")}>
           Reset

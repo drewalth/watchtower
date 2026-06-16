@@ -6,10 +6,11 @@ import {
   ChartTooltipContent,
   type ChartConfig,
 } from "@/components/ui/chart";
+import { formatDay } from "@/lib/datetime";
 import type { FireTimeseriesDay } from "@/lib/types";
 
 import { AnalyticsCard, EmptyState } from "./AnalyticsCard";
-import { dailyTotals, shortDate } from "./shared";
+import { dailyTotals } from "./shared";
 
 const config = {
   count: { label: "Fires", color: "#ef6548" },
@@ -37,7 +38,7 @@ export function FiresOverTimeCard({
             <ChartTooltip
               content={
                 <ChartTooltipContent
-                  labelFormatter={(value) => shortDate(String(value))}
+                  labelFormatter={(value) => formatDay(String(value))}
                 />
               }
             />

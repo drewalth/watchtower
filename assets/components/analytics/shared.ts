@@ -53,13 +53,3 @@ export function shortSource(source: string): string {
   const core = match?.[1] ?? source;
   return core.replace(/^NOAA(\d+)$/, "NOAA-$1");
 }
-
-/** Short "Jun 14" axis/tooltip label for an ISO date. */
-export function shortDate(iso: string): string {
-  const d = new Date(`${iso}T00:00:00Z`);
-  return d.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    timeZone: "UTC",
-  });
-}
