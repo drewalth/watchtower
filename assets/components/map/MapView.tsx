@@ -53,13 +53,13 @@ export function MapView() {
       <MapControls styleId={styleId} onStyleChange={setStyleId} />
       <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-2">
         <FilterSearchControl />
-        <MapLegend />
       </div>
       <CoverageLayer />
       <TowerMarkers />
       <FireClusterLayer />
       <TowerFocuser />
       <SelectedFirePopup />
+      <MapLegend />
     </Map>
   );
 }
