@@ -19,4 +19,14 @@ export const createUiSlice: AppStateCreator<UiSlice> = (set) => ({
     set((s) => {
       s.mapReady = true;
     }),
+
+  focusedTowerId: null,
+  focusTower: (id) =>
+    set((s) => {
+      s.focusedTowerId = id;
+    }),
+  clearFocusedTower: () =>
+    set((s) => {
+      s.focusedTowerId = null;
+    }),
 });

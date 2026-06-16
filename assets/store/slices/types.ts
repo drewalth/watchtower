@@ -104,6 +104,9 @@ export interface UiSlice {
   setViewport: (viewport: MapViewport) => void;
   /** Latch `mapReady` once the MapLibre map reports fully loaded. */
   setMapReady: () => void;
+  focusedTowerId: number | null;
+  focusTower: (id: number) => void;
+  clearFocusedTower: () => void;
 }
 
 /** The full combined store type. */
