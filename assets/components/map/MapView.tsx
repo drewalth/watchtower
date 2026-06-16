@@ -1,4 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
+
+import { useTheme } from "next-themes";
 
 import { Map } from "@/components/ui/map";
 
@@ -13,6 +15,7 @@ import { ReloadingOverlay } from "@/components/map/ReloadingOverlay";
 import { MapReadyReporter } from "@/components/map/MapReadyReporter";
 import { MapViewportSync } from "@/components/map/MapViewportSync";
 import { SelectedFirePopup } from "@/components/map/SelectedFirePopup";
+import { ThemeToggle } from "@/components/map/ThemeToggle";
 import { TowerMarkers } from "@/components/map/TowerMarkers";
 import { useMapStyle } from "@/components/map/useMapStyle";
 import { SATELLITE_STYLE } from "@/lib/basemap";
@@ -47,6 +50,20 @@ export function MapView() {
 
   const [styleId, setStyleId] = useMapStyle();
 
+  // Theme drives the basemap: flipping light↔dark swaps positron↔dark-matter,
+  // but leaves a manually-chosen Satellite basemap alone (it reads in both).
+  // `styleId` is read through a ref so the effect reacts only to theme changes —
+  // depending on `styleId` would re-fire after a manual dropdown pick and fight
+  // the user's selection.
+  const { resolvedTheme } = useTheme();
+  const styleIdRef = useRef(styleId);
+  styleIdRef.current = styleId;
+  useEffect(() => {
+    if (!resolvedTheme || styleIdRef.current === "satellite") return;
+    const next = resolvedTheme === "dark" ? "dark" : "light";
+    if (next !== styleIdRef.current) setStyleId(next);
+  }, [resolvedTheme, setStyleId]);
+
   const minDate = timeseries?.min_date ?? null;
   const maxDate = timeseries?.max_date ?? null;
 
@@ -69,7 +86,10 @@ export function MapView() {
       <MapReadyReporter />
       <MapViewportSync styleId={styleId} />
       <MapControls styleId={styleId} onStyleChange={setStyleId} />
-      <MapLegend />
+      <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-2">
+        <MapLegend />
+        <ThemeToggle />
+      </div>
       <CoverageLayer />
       <TowerMarkers />
       <FireClusterLayer />

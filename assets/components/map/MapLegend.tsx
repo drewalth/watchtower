@@ -22,7 +22,7 @@ export function MapLegend() {
   );
   const [helpOpen, setHelpOpen] = useState(false);
   return (
-    <div className="bg-background/95 text-foreground absolute top-2 left-2 z-10 rounded-md border p-3 text-xs shadow-sm backdrop-blur-sm">
+    <div className="bg-background/95 text-foreground rounded-md border p-3 text-xs shadow-sm backdrop-blur-sm">
       <div className="mb-1.5 flex items-center justify-between gap-3">
         <span className="font-semibold">Legend</span>
         <button
