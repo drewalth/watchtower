@@ -23,6 +23,17 @@
   --border: oklch(0.922 0 0);
   --input: oklch(0.922 0 0);
   --ring: oklch(0.708 0 0);
+  --ember: oklch(0.72 0.18 55);
+  --ember-foreground: oklch(0.2 0.02 60);
+  --brand: oklch(0.62 0.21 35);
+  --surface: oklch(1 0 0 / 70%);
+  --surface-border: oklch(0.2 0 0 / 8%);
+  --risk-low: oklch(0.74 0.16 150);
+  --risk-moderate: oklch(0.83 0.16 95);
+  --risk-high: oklch(0.78 0.17 65);
+  --risk-very-high: oklch(0.65 0.2 40);
+  --risk-extreme: oklch(0.55 0.22 28);
+  --risk-unknown: oklch(0.6 0.01 250);
 }
 
 .dark {
@@ -44,6 +55,17 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.556 0 0);
+  --ember: oklch(0.78 0.17 65);
+  --ember-foreground: oklch(0.18 0.02 60);
+  --brand: oklch(0.68 0.2 38);
+  --surface: oklch(0.18 0.01 250 / 72%);
+  --surface-border: oklch(1 0 0 / 10%);
+  --risk-low: oklch(0.78 0.17 150);
+  --risk-moderate: oklch(0.86 0.17 95);
+  --risk-high: oklch(0.82 0.18 65);
+  --risk-very-high: oklch(0.7 0.21 40);
+  --risk-extreme: oklch(0.62 0.23 28);
+  --risk-unknown: oklch(0.62 0.01 250);
 }
 
 @theme inline {
@@ -69,6 +91,17 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-ember: var(--ember);
+  --color-ember-foreground: var(--ember-foreground);
+  --color-brand: var(--brand);
+  --color-surface: var(--surface);
+  --color-surface-border: var(--surface-border);
+  --color-risk-low: var(--risk-low);
+  --color-risk-moderate: var(--risk-moderate);
+  --color-risk-high: var(--risk-high);
+  --color-risk-very-high: var(--risk-very-high);
+  --color-risk-extreme: var(--risk-extreme);
+  --color-risk-unknown: var(--risk-unknown);
 }
 
 @layer base {
