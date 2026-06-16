@@ -87,6 +87,28 @@ nvm use && npm install && npm run dev   # HMR on :5173, app still at :8000
 A free FIRMS `MAP_KEY` (for ingest only) comes from
 <https://firms.modaps.eosdis.nasa.gov/api/map_key/> → `.env` as `FIRMS_MAP_KEY`.
 
+
+## Run in production mode (one command)
+
+One command brings up the whole stack in production mode — gunicorn-served
+Django, the pre-built React bundle served by WhiteNoise (`DEBUG=0`, no Vite dev
+server), a migrated + seeded database, and the hourly scheduler:
+
+```bash
+make prod        # builds the bundle in-image, migrates, seeds, creates the
+                 # demo admin, then serves at http://localhost:8000
+```
+
+- App: <http://localhost:8000> — live within seconds on radius coverage.
+- Admin: <http://localhost:8000/admin/> — log in with `admin` / `admin`
+  (insecure demo defaults; override via `DJANGO_SUPERUSER_*` in `.env`).
+- Terrain **viewsheds compute in the background** after first boot (~25 min) and
+  upgrade coverage as they land. Live **fire** ingest needs `FIRMS_MAP_KEY`.
+- `make help` lists every command. `make prod-down` stops the stack.
+
+The prod stack runs under its own Compose project (`watchtower-prod`) with an
+isolated database volume, so it won't collide with the dev stack.
+
 ### Endpoints
 
 | Path                             | Returns                                                |
