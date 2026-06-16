@@ -22,6 +22,33 @@
 
 ---
 
+## Ground-truth APIs (confirmed against source — authoritative)
+
+These override any tentative snippet below if they conflict:
+
+- **Loaded data:** `getLoadedData(loadable): T | null` from `@/lib/loadable`. Use it everywhere to extract data from a `Loadable` (do NOT read `.data`).
+- **Store hook:** `useAppStore` from `@/store/appStore`. Loadable fields: `towers`, `timeseries`, `fires`, `risk`, `stats`. Plain fields/actions: `timeWindow`, `preset`, `setWindow(window)`, `setPreset(key)`, `isFiltering` (FiltersSlice). UI slice: `selectedFire`, `selectFire(fire)`, `viewport`, `mapReady`.
+- **MapView selection pattern (replicate):**
+  ```ts
+  const { timeseries, risk, stats, timeWindow, preset, setWindow, setPreset } = useAppStore(
+    useShallow((s) => ({
+      timeseries: getLoadedData(s.timeseries), risk: getLoadedData(s.risk),
+      stats: getLoadedData(s.stats), timeWindow: s.timeWindow, preset: s.preset,
+      setWindow: s.setWindow, setPreset: s.setPreset,
+    })),
+  );
+  ```
+- **Window slicing:** `inWindow(rows, start, end)` (THREE args) from `@/components/analytics/shared`. E.g. `inWindow(ts.series, window.start, window.end)`, `inWindow(risk?.series ?? [], window.start, window.end)`.
+- **Card props (do not change the cards):** `FiresOverTimeCard({ windowRows: FireTimeseriesDay[] })`, `SourceBreakdownCard({ windowRows: FireTimeseriesDay[] })`, `FrpDistributionCard({ stats: FireStats | null })`, `RiskTrendCard({ riskRows: RiskTimeseriesDay[] })`.
+- **time.ts:** `denseDailyTotals(series, minDate, maxDate)`; `PRESETS: { key: PresetKey; label: string; days: number|null }[]`; `PresetKey = "24h"|"7d"|"30d"|"season"|"all"`.
+- **Map context:** `useMap()` returns `{ map: maplibregl.Map | null, isLoaded: boolean }` — destructure `const { map } = useMap()`.
+- **mapStyle:** `riskColor(level: RiskLevel | null): string`, `RISK_LABELS`, `RISK_LEVELS`, `RISK_COLORS`, `RISK_UNKNOWN` from `@/lib/mapStyle`.
+- **HelpModal:** controlled — `HelpModal({ open, onOpenChange })`.
+- **Reloading flag:** `useAppStore((s) => s.isFiltering)`.
+- **Ingestion:** `useIngestionStatus()` returns **`void`** (side-effect: toasts). For the freshness pill, refactor it to ALSO return the latest run, OR add a sibling hook/poll. Endpoint `/api/ingestion/status.json` → `{ run: { id, status: "running"|"completed"|"failed", started_at, finished_at|null } | null }`.
+- **TimeRangeControl props:** `{ dense, window, preset, onWindowChange, onPresetChange }` — preset-button row + brush BarChart.
+- **Tests:** vitest env is `node` globally; component tests MUST start with `// @vitest-environment jsdom` (see `LocationControl.test.tsx`). `toBeTruthy()`/`toHaveBeenCalledWith()` work without jest-dom.
+
 ## File structure (created / modified)
 
 **New — `assets/components/dashboard/`:**
