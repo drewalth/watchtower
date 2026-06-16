@@ -140,9 +140,29 @@ export interface IngestionRun {
   finished_at: string | null;
 }
 
+/** Per-stage status from the ingestion pipeline. */
+export type ProcessingStageStatus = "pending" | "running" | "completed" | "failed";
+
+/** Keys matching the stage `key` values returned by the API. */
+export type ProcessingStageKey = "fires" | "weather" | "risk" | "predictions" | "viewsheds";
+
+/** One stage of the ingestion pipeline. Only the `viewsheds` stage carries
+ *  `done`/`total`. */
+export interface ProcessingStage {
+  key: ProcessingStageKey;
+  label: string;
+  status: ProcessingStageStatus;
+  done?: number;
+  total?: number;
+}
+
 export interface IngestionStatus {
   /** The latest run, or null until the first cycle has run. */
   run: IngestionRun | null;
+  /** Per-stage pipeline state. */
+  stages: ProcessingStage[];
+  /** True when every stage has completed or failed (no pending/running). */
+  all_done: boolean;
 }
 
 export interface FireProps {

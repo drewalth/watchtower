@@ -229,6 +229,18 @@ export const createDataSlice: AppStateCreator<DataSlice> = (set, get) => {
       void loadStats(window);
     },
 
+    refreshFires: () => {
+      const window = get().timeWindow;
+      if (!window) return;
+      void loadFires(window);
+      void loadTimeseries();
+      void loadStats(window);
+    },
+
+    refreshTowers: () => {
+      void loadTowers();
+    },
+
     loadTowerRisk: (id) => {
       const cur = get().towerRisk[id];
       if (cur && (cur.state === "loading" || cur.state === "loaded")) return;

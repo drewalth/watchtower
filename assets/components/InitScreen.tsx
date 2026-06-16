@@ -1,6 +1,7 @@
-import { AlertCircle, Check, Flame, Loader2 } from "lucide-react";
+import { Flame } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { StageRow, type StageVisualState } from "@/components/status/StageRow";
 import { cn } from "@/lib/utils";
 import { isFailed, type Loadable } from "@/lib/loadable";
 import { useAppStore } from "@/store/appStore";
@@ -9,18 +10,18 @@ type LoadState = Loadable<unknown>["state"];
 
 const ACCENT = "#ef6548";
 
-/** A small icon reflecting one source's load state. */
-function StateIcon({ state }: { state: LoadState }) {
+/** Map a Loadable state string to the shared StageRow visual state. */
+function loadStateToVisual(state: LoadState): StageVisualState {
   switch (state) {
     case "loaded":
-      return <Check className="size-4 text-emerald-400" />;
+      return "done";
     case "failed":
-      return <AlertCircle className="text-destructive size-4" />;
+      return "error";
     case "loading":
     case "reloading":
-      return <Loader2 className="text-muted-foreground size-4 animate-spin" />;
-    default: // "initial" — not started yet
-      return <span className="bg-muted-foreground/40 size-1.5 rounded-full" />;
+      return "active";
+    default: // "initial"
+      return "idle";
   }
 }
 
@@ -91,18 +92,12 @@ export function InitScreen() {
 
         <ul className="space-y-2.5">
           {rows.map((row) => (
-            <li
+            <StageRow
               key={row.label}
-              className={cn(
-                "flex items-center gap-2.5 text-sm text-slate-200",
-                (!row.critical || row.state === "initial") && "text-slate-500",
-              )}
-            >
-              <span className="flex size-4 items-center justify-center">
-                <StateIcon state={row.state} />
-              </span>
-              {row.label}
-            </li>
+              state={loadStateToVisual(row.state)}
+              label={row.label}
+              muted={!row.critical || row.state === "initial"}
+            />
           ))}
         </ul>
 

@@ -27,15 +27,25 @@ class Command(BaseCommand):
     help = "Run the full ingest cycle, tracking progress in an IngestionRun row."
 
     def handle(self, *args, **options):
-        run = IngestionRun.objects.create(status=IngestionRun.Status.RUNNING)
+        run = IngestionRun.objects.create(
+            kind=IngestionRun.Kind.INGEST_CYCLE,
+            status=IngestionRun.Status.RUNNING,
+            steps={label: "pending" for label, _, _ in STEPS},
+        )
         results = []
         failures = 0
         for label, command, kwargs in STEPS:
+            run.steps[label] = "running"
+            run.save(update_fields=["steps"])
             try:
                 call_command(command, **kwargs)
+                run.steps[label] = "completed"
+                run.save(update_fields=["steps"])
                 results.append(f"{label}: ok")
             except Exception as exc:  # isolate like the old `|| true` loop
                 failures += 1
+                run.steps[label] = "failed"
+                run.save(update_fields=["steps"])
                 results.append(f"{label}: failed ({exc})")
                 self.stderr.write(self.style.ERROR(f"{label} failed: {exc}"))
 

@@ -1,6 +1,7 @@
 from django.core.management.base import BaseCommand, CommandError
+from django.utils import timezone
 
-from towers.models import WatchtowerSite
+from towers.models import IngestionRun, WatchtowerSite
 from towers.viewshed import compute_viewshed
 
 
@@ -23,8 +24,38 @@ class Command(BaseCommand):
             "--only-missing", action="store_true",
             help="Only compute towers that don't already have a stored viewshed.",
         )
+        parser.add_argument(
+            "--track", action="store_true",
+            help=(
+                "Record this run in an IngestionRun row (kind=viewsheds) so the "
+                "status endpoint can surface viewshed progress to the frontend."
+            ),
+        )
 
     def handle(self, *args, **options):
+        track = options["track"]
+        run = None
+        if track:
+            run = IngestionRun.objects.create(
+                kind=IngestionRun.Kind.VIEWSHEDS,
+                status=IngestionRun.Status.RUNNING,
+            )
+
+        try:
+            self._run(options)
+        except Exception:
+            if run is not None:
+                run.status = IngestionRun.Status.FAILED
+                run.finished_at = timezone.now()
+                run.save(update_fields=["status", "finished_at"])
+            raise
+
+        if run is not None:
+            run.status = IngestionRun.Status.COMPLETED
+            run.finished_at = timezone.now()
+            run.save(update_fields=["status", "finished_at"])
+
+    def _run(self, options):
         towers = WatchtowerSite.objects.all()
         if options["tower"] is not None:
             towers = towers.filter(pk=options["tower"])
@@ -32,6 +63,10 @@ class Command(BaseCommand):
             towers = towers.filter(viewshed__isnull=True)
         towers = list(towers)
         if not towers:
+            if options["only_missing"]:
+                # All towers already have viewsheds (or none seeded yet) — clean no-op.
+                self.stdout.write("No towers need a viewshed — nothing to do.")
+                return
             raise CommandError("No matching towers — seed_towers first.")
 
         for tower in towers:

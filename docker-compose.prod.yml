@@ -74,7 +74,7 @@ services:
   scheduler:
     <<: *app
     command: >
-      sh -c 'python manage.py compute_viewsheds --only-missing || true;
+      sh -c 'python manage.py compute_viewsheds --only-missing --track || true;
              while true; do
                python manage.py run_ingest_cycle || true;
                sleep 3600;

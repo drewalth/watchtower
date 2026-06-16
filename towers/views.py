@@ -261,26 +261,101 @@ def tower_risk(request, tower_id):
 
 
 def ingestion_status(request):
-    """Latest data-refresh run, for the UI's progress toast.
+    """Per-stage checklist + ingest-cycle run, for the UI's status panel.
 
-    Returns ``{"run": null}`` until the first cycle has run; otherwise the most
-    recent IngestionRun's id/status/timestamps. The frontend polls this and
-    shows a spinner while ``running``, a "Data refreshed" checkmark on the
-    ``running`` → ``completed`` transition it witnesses.
+    Returns the latest ingest_cycle run (back-compat ``"run"`` key), a
+    ``"stages"`` list with one entry per processing stage, and ``"all_done"``
+    signalling that every stage has completed.
+
+    Stage statuses are one of ``pending|running|completed|failed`` to match the
+    IngestionRun.Status values (lowercase).  The viewsheds stage also carries
+    ``done`` and ``total`` int counts.
     """
-    run = IngestionRun.objects.first()  # Meta.ordering = ["-started_at"]
-    if run is None:
-        return JsonResponse({"run": None})
-    return JsonResponse(
+    ingest_run = (
+        IngestionRun.objects.filter(kind=IngestionRun.Kind.INGEST_CYCLE).first()
+    )
+    viewshed_run = (
+        IngestionRun.objects.filter(kind=IngestionRun.Kind.VIEWSHEDS).first()
+    )
+
+    run_payload = None
+    if ingest_run is not None:
+        run_payload = {
+            "id": ingest_run.id,
+            "status": ingest_run.status,
+            "started_at": ingest_run.started_at.isoformat(),
+            "finished_at": (
+                ingest_run.finished_at.isoformat() if ingest_run.finished_at else None
+            ),
+        }
+
+    stages = _build_stages(ingest_run, viewshed_run)
+    all_done = _all_done(ingest_run, stages)
+
+    return JsonResponse({"run": run_payload, "stages": stages, "all_done": all_done})
+
+
+# Maps (stage key, human label, steps-dict key) for the four ingest stages.
+_INGEST_STAGE_MAP = [
+    ("fires", "Active fires", "ingest_fires"),
+    ("weather", "Fire weather", "ingest_weather"),
+    ("risk", "Risk ratings", "compute_fire_risk"),
+    ("predictions", "ML predictions", "predict_ignition"),
+]
+
+
+def _build_stages(ingest_run, viewshed_run):
+    """Assemble the stages list from the latest ingest and viewshed runs."""
+    steps = ingest_run.steps if ingest_run is not None else {}
+
+    stages = [
         {
-            "run": {
-                "id": run.id,
-                "status": run.status,
-                "started_at": run.started_at.isoformat(),
-                "finished_at": run.finished_at.isoformat() if run.finished_at else None,
-            }
+            "key": key,
+            "label": label,
+            "status": steps.get(step_key, "pending"),
+        }
+        for key, label, step_key in _INGEST_STAGE_MAP
+    ]
+
+    # Viewshed stage: include done/total counts regardless of run state.
+    done = WatchtowerSite.objects.filter(viewshed__isnull=False).count()
+    total = WatchtowerSite.objects.count()
+
+    if viewshed_run is not None:
+        vs_status = viewshed_run.status  # running / completed / failed
+    elif total > 0 and done == total:
+        vs_status = "completed"
+    else:
+        vs_status = "pending"
+
+    stages.append(
+        {
+            "key": "viewsheds",
+            "label": "Viewsheds",
+            "status": vs_status,
+            "done": done,
+            "total": total,
         }
     )
+    return stages
+
+
+def _all_done(ingest_run, stages):
+    """True when the ingest cycle is complete and viewsheds are complete."""
+    if ingest_run is None:
+        return False
+
+    ingest_stages_done = all(
+        s["status"] == "completed"
+        for s in stages
+        if s["key"] != "viewsheds"
+    )
+    viewshed_stage = next(s for s in stages if s["key"] == "viewsheds")
+
+    ingest_complete = (
+        ingest_run.status == IngestionRun.Status.COMPLETED or ingest_stages_done
+    )
+    return ingest_complete and viewshed_stage["status"] == "completed"
 
 
 def _fire_collection(fires):

@@ -3,6 +3,7 @@ import { immer } from "zustand/middleware/immer";
 
 import { createDataSlice } from "./slices/dataSlice";
 import { createFiltersSlice } from "./slices/filtersSlice";
+import { createProcessingSlice } from "./slices/processingSlice";
 import { createUiSlice } from "./slices/uiSlice";
 import type { AppStore } from "./slices/types";
 
@@ -13,6 +14,7 @@ export const useAppStore = create<AppStore>()(
     ...createDataSlice(...a),
     ...createFiltersSlice(...a),
     ...createUiSlice(...a),
+    ...createProcessingSlice(...a),
   })),
 );
 

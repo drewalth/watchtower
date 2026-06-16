@@ -200,18 +200,27 @@ class FireRiskAssessment(models.Model):
 
 
 class IngestionRun(models.Model):
-    """One execution of the hourly data-refresh cycle (run_ingest_cycle).
+    """One execution of a data-processing cycle.
 
     The ``web`` and ``scheduler`` containers share only the database, so this row
     is how the scheduler tells the UI a refresh is happening: it flips to
     ``running`` at the start and ``completed``/``failed`` at the end, and the
     frontend polls ``/api/ingestion/status.json`` to drive a progress toast.
+
+    ``kind`` distinguishes the ingest cycle from viewshed computation so the
+    status endpoint can report each independently.  ``steps`` tracks the
+    per-step status of an ingest cycle run; keys are command labels, values are
+    one of ``pending|running|completed|failed``.
     """
 
     class Status(models.TextChoices):
         RUNNING = "running", "Running"
         COMPLETED = "completed", "Completed"
         FAILED = "failed", "Failed"
+
+    class Kind(models.TextChoices):
+        INGEST_CYCLE = "ingest_cycle", "Ingest cycle"
+        VIEWSHEDS = "viewsheds", "Viewsheds"
 
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
@@ -221,12 +230,25 @@ class IngestionRun(models.Model):
     detail = models.TextField(
         blank=True, default="", help_text="Per-step ok/failed summary for debugging."
     )
+    kind = models.CharField(
+        max_length=32,
+        choices=Kind.choices,
+        default=Kind.INGEST_CYCLE,
+        help_text="Which pipeline this run tracks.",
+    )
+    # Maps step label → status string (pending|running|completed|failed).
+    # Populated incrementally by run_ingest_cycle so mid-cycle polls see progress.
+    steps = models.JSONField(
+        default=dict,
+        blank=True,
+        help_text="Per-step statuses for ingest_cycle runs.",
+    )
 
     class Meta:
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"IngestionRun {self.pk} ({self.status}) @ {self.started_at:%Y-%m-%d %H:%M}"
+        return f"IngestionRun {self.pk} ({self.kind}/{self.status}) @ {self.started_at:%Y-%m-%d %H:%M}"
 
 
 class IgnitionPrediction(models.Model):

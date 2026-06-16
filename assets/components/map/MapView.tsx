@@ -16,6 +16,7 @@ import { SelectedFirePopup } from "@/components/map/SelectedFirePopup";
 import { SelectedTowerPopup } from "@/components/map/SelectedTowerPopup";
 import { TowerMarkers } from "@/components/map/TowerMarkers";
 import { useMapStyle } from "@/components/map/useMapStyle";
+import { ProcessingStatusPill } from "@/components/status/ProcessingStatusPill";
 import { SATELLITE_STYLE } from "@/lib/basemap";
 
 // California-ish starting view; fitBounds refines it once towers load.
@@ -54,6 +55,7 @@ export function MapView() {
       <MapControls styleId={styleId} onStyleChange={setStyleId} />
       <div className="absolute top-2 left-2 z-10 flex flex-col items-start gap-2">
         <FilterSearchControl />
+        <ProcessingStatusPill />
       </div>
       <CoverageLayer />
       <TowerMarkers />

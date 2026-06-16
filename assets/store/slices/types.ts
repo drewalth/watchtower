@@ -7,6 +7,7 @@ import type {
   FireProps,
   FireStats,
   FireTimeseries,
+  ProcessingStage,
   RiskTimeseries,
   TowerCollection,
   TowerRiskDetail,
@@ -69,6 +70,10 @@ export interface DataSlice {
   setPreset: (preset: PresetKey) => void;
   setWindow: (window: TimeWindow) => void;
   loadTowerRisk: (id: number) => void;
+  /** Silently refresh fires + timeseries + stats (fires stage completed). */
+  refreshFires: () => void;
+  /** Silently refresh towers only (risk/predictions/viewsheds stage completed). */
+  refreshTowers: () => void;
 }
 
 export interface FiltersSlice {
@@ -114,8 +119,18 @@ export interface UiSlice {
   clearSelectedTower: () => void;
 }
 
+export interface ProcessingSlice {
+  /** Latest per-stage pipeline state from the polling hook. Empty until the
+   *  first successful poll. */
+  processingStages: ProcessingStage[];
+  /** True when all stages are completed/failed (no pending/running). */
+  processingAllDone: boolean;
+  /** Overwrite the processing state after each successful poll. */
+  setProcessing: (stages: ProcessingStage[], allDone: boolean) => void;
+}
+
 /** The full combined store type. */
-export type AppStore = DataSlice & FiltersSlice & UiSlice;
+export type AppStore = DataSlice & FiltersSlice & UiSlice & ProcessingSlice;
 
 // ─── Slice creator alias ──────────────────────────────────────────────────────
 

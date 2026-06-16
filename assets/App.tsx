@@ -2,10 +2,10 @@ import { ThemeProvider } from "next-themes";
 
 import { AppInitializer } from "@/components/AppInitializer";
 import { Toaster } from "@/components/ui/sonner";
-import { useIngestionStatus } from "@/hooks/useIngestionStatus";
+import { useProcessingStatus } from "@/hooks/useProcessingStatus";
 
 export function App() {
-  useIngestionStatus();
+  useProcessingStatus();
   return (
     <ThemeProvider
       attribute="class"

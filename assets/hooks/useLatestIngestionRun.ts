@@ -3,14 +3,14 @@ import { useEffect, useState } from "react";
 import { API, type IngestionRun, type IngestionStatus } from "@/lib/types";
 
 /** How often to refresh the freshness pill (ms). Cheap endpoint; this is a
- *  read-only display poll, separate from the toast-driving useIngestionStatus. */
+ *  read-only display poll, separate from the refresh-driving useProcessingStatus. */
 const POLL_INTERVAL_MS = 15000;
 
 /**
  * Poll the ingest-status endpoint and return the latest run for display (the
- * freshness pill). Read-only and side-effect-free — it never toasts or triggers
- * a data refresh; that remains the job of `useIngestionStatus`, mounted once at
- * the app root. Skips polling a hidden tab and aborts in flight on unmount.
+ * freshness pill). Read-only and side-effect-free — it never triggers a data
+ * refresh; that remains the job of `useProcessingStatus`, mounted once at the
+ * app root. Skips polling a hidden tab and aborts in flight on unmount.
  */
 export function useLatestIngestionRun(): IngestionRun | null {
   const [run, setRun] = useState<IngestionRun | null>(null);
