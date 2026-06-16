@@ -41,7 +41,10 @@ export function FilterSearchControl() {
     }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     setIsFiltering(true);
-    debounceRef.current = setTimeout(() => commitSearch(text), SEARCH_DEBOUNCE_MS);
+    debounceRef.current = setTimeout(
+      () => commitSearch(text),
+      SEARCH_DEBOUNCE_MS,
+    );
   };
 
   // Cancel a pending commit if the control unmounts mid-debounce.

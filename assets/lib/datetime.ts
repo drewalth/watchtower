@@ -44,7 +44,10 @@ const COMPACT_UNITS = {
 /** Splice the compact unit templates into a locale's relativeTime config while
  *  keeping its translated `past`/`future` wrappers. */
 function applyCompactRelative(name: string): void {
-  const base = dayjs.Ls[name]?.relativeTime ?? { future: "in %s", past: "%s ago" };
+  const base = dayjs.Ls[name]?.relativeTime ?? {
+    future: "in %s",
+    past: "%s ago",
+  };
   dayjs.updateLocale(name, { relativeTime: { ...base, ...COMPACT_UNITS } });
 }
 

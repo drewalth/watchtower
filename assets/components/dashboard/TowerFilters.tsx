@@ -98,7 +98,10 @@ export function TowerFilters() {
       </div>
 
       <div className="flex items-center justify-between gap-2">
-        <Label htmlFor="has-active-fire" className="text-xs text-muted-foreground">
+        <Label
+          htmlFor="has-active-fire"
+          className="text-xs text-muted-foreground"
+        >
           Has active fire(s)
         </Label>
         <Switch

@@ -54,7 +54,11 @@ export function InitScreen() {
     { label: "Active fires", state: fires, critical: true },
     // The map mounts at launch and can't enter a `failed` state here, so it's a
     // simple spinner-until-painted — but it gates the reveal just like the data.
-    { label: "Preparing map", state: mapReady ? "loaded" : "loading", critical: true },
+    {
+      label: "Preparing map",
+      state: mapReady ? "loaded" : "loading",
+      critical: true,
+    },
     { label: "Risk trends", state: risk, critical: false },
     { label: "Per-tower stats", state: stats, critical: false },
   ];
@@ -79,7 +83,9 @@ export function InitScreen() {
       <div className="relative w-[320px] max-w-full rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl">
         <div className="mb-1 flex items-center gap-2">
           <Flame className="size-5" style={{ color: ACCENT }} />
-          <span className="text-lg font-semibold text-slate-50">Watchtower</span>
+          <span className="text-lg font-semibold text-slate-50">
+            Watchtower
+          </span>
         </div>
         <p className="mb-5 text-xs text-slate-400">Wildfire ops console</p>
 

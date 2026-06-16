@@ -18,7 +18,7 @@ export function DashboardShell() {
       <div className="relative flex min-h-0 overflow-hidden">
         <div className="relative min-w-0 flex-1 rounded-xl p-2">
           <Card className="h-full w-full p-0 overflow-hidden">
-          <MapView />
+            <MapView />
           </Card>
         </div>
         <AnalyticsDock />

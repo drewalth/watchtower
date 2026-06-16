@@ -2,14 +2,21 @@ import { describe, expect, it } from "vitest";
 import { computeKpis } from "./kpis";
 import { shiftDays } from "@/lib/time";
 import type {
-  FireCollection, FireStats, FireTimeseries, RiskTimeseries, TowerCollection,
+  FireCollection,
+  FireStats,
+  FireTimeseries,
+  RiskTimeseries,
+  TowerCollection,
 } from "@/lib/types";
 
 const towers = {
   type: "FeatureCollection",
   features: [
-    tower(1, "high"), tower(2, "extreme"), tower(3, "low"),
-    tower(4, null), tower(5, "very_high"),
+    tower(1, "high"),
+    tower(2, "extreme"),
+    tower(3, "low"),
+    tower(4, null),
+    tower(5, "very_high"),
   ],
 } as unknown as TowerCollection;
 
@@ -27,7 +34,11 @@ const fires = {
 } as unknown as FireCollection;
 
 function fire(frp: number | null) {
-  return { type: "Feature", geometry: { type: "Point", coordinates: [-120, 39] }, properties: { frp } };
+  return {
+    type: "Feature",
+    geometry: { type: "Point", coordinates: [-120, 39] },
+    properties: { frp },
+  };
 }
 
 const timeseries = {
@@ -36,12 +47,15 @@ const timeseries = {
     { date: "2026-06-14", source: "A", count: 5 },
     { date: "2026-06-15", source: "B", count: 1 },
   ],
-  min_date: "2026-06-13", max_date: "2026-06-15",
+  min_date: "2026-06-13",
+  max_date: "2026-06-15",
 } as FireTimeseries;
 
 const stats = {
   per_tower: [
-    { id: 1, name: "T1", count: 7 }, { id: 2, name: "T2", count: 0 }, { id: 3, name: "T3", count: 3 },
+    { id: 1, name: "T1", count: 7 },
+    { id: 2, name: "T2", count: 0 },
+    { id: 3, name: "T3", count: 3 },
   ],
   frp_buckets: [],
 } as FireStats;
@@ -69,7 +83,12 @@ describe("computeKpis", () => {
   it("buckets risk levels and counts elevated (high+very_high+extreme)", () => {
     const k = computeKpis({ towers, fires, stats, risk, timeseries, window });
     expect(k.riskDistribution).toEqual({
-      low: 1, moderate: 0, high: 1, very_high: 1, extreme: 1, unknown: 1,
+      low: 1,
+      moderate: 0,
+      high: 1,
+      very_high: 1,
+      extreme: 1,
+      unknown: 1,
     });
     expect(k.elevatedRisk).toBe(3);
   });
@@ -98,7 +117,12 @@ describe("computeKpis", () => {
     } as FireTimeseries;
     const longWin = { start: "2026-06-01", end: "2026-06-20" };
     const k = computeKpis({
-      towers, fires, stats, risk, timeseries: longTs, window: longWin,
+      towers,
+      fires,
+      stats,
+      risk,
+      timeseries: longTs,
+      window: longWin,
     });
     // 20 dense days → sliced to the trailing 14 (counts 6..19).
     expect(k.activeFiresSparkline).toEqual([
@@ -116,7 +140,14 @@ describe("computeKpis", () => {
     ).toEqual([]);
   });
   it("is null-safe when everything is empty", () => {
-    const k = computeKpis({ towers: null, fires: null, stats: null, risk: null, timeseries: null, window: null });
+    const k = computeKpis({
+      towers: null,
+      fires: null,
+      stats: null,
+      risk: null,
+      timeseries: null,
+      window: null,
+    });
     expect(k.activeFires).toBe(0);
     expect(k.peakFrpMw).toBeNull();
     expect(k.meanIgnitionPct).toBeNull();

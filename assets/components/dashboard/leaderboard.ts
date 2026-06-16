@@ -40,10 +40,20 @@ export function sortLeaderboard(
 ): LeaderboardRow[] {
   const copy = [...rows];
   switch (sort) {
-    case "fires": copy.sort((a, b) => b.fireCount - a.fireCount); break;
-    case "risk": copy.sort((a, b) => nullsLast(a.riskScore, b.riskScore)); break;
-    case "ignition": copy.sort((a, b) => nullsLast(a.ignitionProbability, b.ignitionProbability)); break;
-    case "name": copy.sort((a, b) => a.name.localeCompare(b.name)); break;
+    case "fires":
+      copy.sort((a, b) => b.fireCount - a.fireCount);
+      break;
+    case "risk":
+      copy.sort((a, b) => nullsLast(a.riskScore, b.riskScore));
+      break;
+    case "ignition":
+      copy.sort((a, b) =>
+        nullsLast(a.ignitionProbability, b.ignitionProbability),
+      );
+      break;
+    case "name":
+      copy.sort((a, b) => a.name.localeCompare(b.name));
+      break;
   }
   return copy;
 }

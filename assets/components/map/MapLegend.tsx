@@ -21,7 +21,9 @@ import { useAppStore } from "@/store/appStore";
  *  legend matches what's drawn. (Help moved to the TopBar.) */
 export function MapLegend() {
   const towers = useAppStore((s) => getLoadedData(s.towers));
-  const kinds = new Set(towers?.features.map((f) => f.properties.coverage_kind));
+  const kinds = new Set(
+    towers?.features.map((f) => f.properties.coverage_kind),
+  );
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -58,7 +60,10 @@ export function MapLegend() {
           <li className="flex items-center gap-2">
             <span
               className="size-3 rounded-full"
-              style={{ backgroundColor: "#ef6548", border: "1px solid #d7301f" }}
+              style={{
+                backgroundColor: "#ef6548",
+                border: "1px solid #d7301f",
+              }}
             />
             Active fire
           </li>

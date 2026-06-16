@@ -23,9 +23,7 @@ export function TowerFocuser() {
 
   useEffect(() => {
     if (focusedTowerId == null || !map) return;
-    const f = towers?.features.find(
-      (t) => t.properties.id === focusedTowerId,
-    );
+    const f = towers?.features.find((t) => t.properties.id === focusedTowerId);
     if (f) {
       const [lng, lat] = f.geometry.coordinates as [number, number];
       map.flyTo({ center: [lng, lat], zoom: 11 });

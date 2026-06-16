@@ -22,7 +22,9 @@ export function useLatestIngestionRun(): IngestionRun | null {
     async function poll() {
       if (typeof document !== "undefined" && document.hidden) return;
       try {
-        const res = await fetch(API.ingestionStatus, { signal: controller.signal });
+        const res = await fetch(API.ingestionStatus, {
+          signal: controller.signal,
+        });
         if (!res.ok) return;
         const data = (await res.json()) as IngestionStatus;
         if (!cancelled) setRun(data.run);

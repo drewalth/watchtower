@@ -27,7 +27,11 @@ export function FreshnessPill() {
       />
       <span className="sr-only">{label}</span>
       <span aria-hidden className="hidden text-muted-foreground sm:inline">
-        {running ? "refreshing…" : stamp ? `updated ${formatRelative(stamp)}` : "—"}
+        {running
+          ? "refreshing…"
+          : stamp
+            ? `updated ${formatRelative(stamp)}`
+            : "—"}
       </span>
     </div>
   );

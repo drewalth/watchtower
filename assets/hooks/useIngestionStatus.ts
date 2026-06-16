@@ -2,7 +2,11 @@ import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
 import { useAppStore } from "@/store/appStore";
-import { API, type IngestionStatus, type IngestionRunStatus } from "@/lib/types";
+import {
+  API,
+  type IngestionStatus,
+  type IngestionRunStatus,
+} from "@/lib/types";
 
 /** How often to poll the ingest-status endpoint (ms). */
 const POLL_INTERVAL_MS = 5000;
@@ -36,7 +40,9 @@ export function useIngestionStatus(): void {
       // Don't poll a backgrounded tab — nothing to show, and it resumes on focus.
       if (typeof document !== "undefined" && document.hidden) return;
       try {
-        const res = await fetch(API.ingestionStatus, { signal: controller.signal });
+        const res = await fetch(API.ingestionStatus, {
+          signal: controller.signal,
+        });
         if (!res.ok) return;
         const { run } = (await res.json()) as IngestionStatus;
         if (cancelled || !run) return;
@@ -50,7 +56,10 @@ export function useIngestionStatus(): void {
         if (prev.id === run.id && prev.status === run.status) return;
 
         if (run.status === "running") {
-          toast.loading("Refreshing data…", { id: TOAST_ID, duration: Infinity });
+          toast.loading("Refreshing data…", {
+            id: TOAST_ID,
+            duration: Infinity,
+          });
         } else if (run.status === "completed") {
           // Only celebrate a run we watched go from running → completed.
           if (prev.id === run.id && prev.status === "running") {

@@ -82,7 +82,12 @@ function perUrlFetch(
     const key = [...overrides.keys()].find((prefix) => url.startsWith(prefix));
     const override = key !== undefined ? overrides.get(key) : undefined;
     if (override === "reject") {
-      return { ok: false as const, status: 500, statusText: "Server Error", json: async () => ({}) };
+      return {
+        ok: false as const,
+        status: 500,
+        statusText: "Server Error",
+        json: async () => ({}),
+      };
     }
     if (override === "hang") {
       return new Promise<never>(() => {});
@@ -252,8 +257,8 @@ describe("appStore.retry", () => {
     const callsBeforeRetry = fetchMock.mock.calls.length;
 
     // Count timeseries calls before retry — should not increase.
-    const timeseriesCallsBefore = fetchMock.mock.calls.filter(([url]: [string]) =>
-      String(url).startsWith("/api/fires/timeseries"),
+    const timeseriesCallsBefore = fetchMock.mock.calls.filter(
+      ([url]: [string]) => String(url).startsWith("/api/fires/timeseries"),
     ).length;
 
     useAppStore.getState().retry();
@@ -263,8 +268,8 @@ describe("appStore.retry", () => {
     expect(useAppStore.getState().ready).toBe(true);
 
     // Timeseries was already loaded — retry must not refetch it.
-    const timeseriesCallsAfter = fetchMock.mock.calls.filter(([url]: [string]) =>
-      String(url).startsWith("/api/fires/timeseries"),
+    const timeseriesCallsAfter = fetchMock.mock.calls.filter(
+      ([url]: [string]) => String(url).startsWith("/api/fires/timeseries"),
     ).length;
     expect(timeseriesCallsAfter).toBe(timeseriesCallsBefore);
 
@@ -281,7 +286,9 @@ describe("appStore.retry", () => {
 
     const { useAppStore } = await freshStore();
     useAppStore.getState().initialize();
-    await flushUntil(() => useAppStore.getState().timeseries.state === "failed");
+    await flushUntil(
+      () => useAppStore.getState().timeseries.state === "failed",
+    );
 
     expect(useAppStore.getState().timeseries.state).toBe("failed");
     expect(useAppStore.getState().timeWindow).toBeNull();
@@ -371,7 +378,9 @@ describe("appStore.setPreset", () => {
 
     const s = useAppStore.getState();
     expect(s.preset).toBe("7d");
-    expect(s.timeWindow).toEqual(presetWindow("7d", "2025-01-01", "2025-02-01"));
+    expect(s.timeWindow).toEqual(
+      presetWindow("7d", "2025-01-01", "2025-02-01"),
+    );
     expect(s.fires.state).toBe("loaded");
     expect(s.stats.state).toBe("loaded");
   });
@@ -467,7 +476,18 @@ describe("appStore UI state", () => {
 
   it("selectFire sets and clears the selected fire", async () => {
     const { useAppStore } = await freshStore();
-    const fire = { lng: -120.5, lat: 37.2, props: { id: 1, source: "VIIRS", frp: 10, confidence: "h", brightness: 310, acquired_at: "2025-01-15T00:00:00Z" } };
+    const fire = {
+      lng: -120.5,
+      lat: 37.2,
+      props: {
+        id: 1,
+        source: "VIIRS",
+        frp: 10,
+        confidence: "h",
+        brightness: 310,
+        acquired_at: "2025-01-15T00:00:00Z",
+      },
+    };
 
     expect(useAppStore.getState().selectedFire).toBeNull();
 
@@ -480,7 +500,12 @@ describe("appStore UI state", () => {
 
   it("setViewport records the camera viewport", async () => {
     const { useAppStore } = await freshStore();
-    const viewport = { center: [-120.5, 37.2] as [number, number], zoom: 10, bearing: 0, pitch: 0 };
+    const viewport = {
+      center: [-120.5, 37.2] as [number, number],
+      zoom: 10,
+      bearing: 0,
+      pitch: 0,
+    };
 
     expect(useAppStore.getState().viewport).toBeNull();
 
@@ -539,7 +564,9 @@ describe("appStore.ready gate", () => {
 
     // Switch to neverFetch so the window re-fetch hangs.
     vi.stubGlobal("fetch", neverFetch());
-    useAppStore.getState().setWindow({ start: "2025-01-10", end: "2025-02-01" });
+    useAppStore
+      .getState()
+      .setWindow({ start: "2025-01-10", end: "2025-02-01" });
 
     // fires is now reloading — but ready must stay true (one-way latch).
     expect(useAppStore.getState().fires.state).toBe("reloading");
@@ -558,8 +585,14 @@ describe("appStore.setWindow — stale-window abort", () => {
     await flushUntil(() => useAppStore.getState().ready);
 
     // Two deferred resolvers for /api/fires.geojson (A and B).
-    const firesPayloadA = { type: "FeatureCollection", features: [{ id: "A" }] };
-    const firesPayloadB = { type: "FeatureCollection", features: [{ id: "B" }] };
+    const firesPayloadA = {
+      type: "FeatureCollection",
+      features: [{ id: "A" }],
+    };
+    const firesPayloadB = {
+      type: "FeatureCollection",
+      features: [{ id: "B" }],
+    };
 
     let resolveA!: (v: unknown) => void;
     let resolveB!: (v: unknown) => void;

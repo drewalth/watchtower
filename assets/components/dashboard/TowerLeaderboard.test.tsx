@@ -32,7 +32,10 @@ vi.mock("@/store/appStore", () => ({
         },
       },
       stats: {
-        data: { per_tower: [{ id: 7, name: "Cedar Peak", count: 5 }], frp_buckets: [] },
+        data: {
+          per_tower: [{ id: 7, name: "Cedar Peak", count: 5 }],
+          frp_buckets: [],
+        },
       },
       focusTower,
     }),

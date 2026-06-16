@@ -47,14 +47,14 @@ pass `"spheroid"` for true ground metres.
 
 ## Stack
 
-| Layer | Choice |
-|---|---|
-| Backend | Python 3.12, Django 5.x + GeoDjango (`django.contrib.gis`) |
-| Database | PostgreSQL 16 + PostGIS 3.4 |
-| Geo compute | GDAL CLI (`gdal_viewshed`/`gdalwarp`), `rasterio`, `shapely` |
-| ETL | `requests` + `pandas` |
-| Frontend | React + TypeScript + Vite, MapLibre GL (mapcn), Tailwind |
-| Tooling | Docker Compose, [uv](https://docs.astral.sh/uv/) (Python), Node 24 |
+| Layer       | Choice                                                             |
+| ----------- | ------------------------------------------------------------------ |
+| Backend     | Python 3.12, Django 5.x + GeoDjango (`django.contrib.gis`)         |
+| Database    | PostgreSQL 16 + PostGIS 3.4                                        |
+| Geo compute | GDAL CLI (`gdal_viewshed`/`gdalwarp`), `rasterio`, `shapely`       |
+| ETL         | `requests` + `pandas`                                              |
+| Frontend    | React + TypeScript + Vite, MapLibre GL (mapcn), Tailwind           |
+| Tooling     | Docker Compose, [uv](https://docs.astral.sh/uv/) (Python), Node 24 |
 
 GeoDjango needs GDAL/GEOS/PROJ and `gdal_viewshed` shells out to the GDAL CLI,
 so **Django runs in Docker**. Node/Vite runs on the host — it's intentionally
@@ -89,13 +89,13 @@ A free FIRMS `MAP_KEY` (for ingest only) comes from
 
 ### Endpoints
 
-| Path | Returns |
-|---|---|
-| `/` | React map: towers, coverage polygons, live fire points |
-| `/api/towers.geojson` | Towers with coverage polygon + in-range fire count |
-| `/api/fires.geojson` | All fire detections |
-| `/api/towers/<id>/fires.geojson` | Fires within one tower's coverage |
-| `/admin/` | Django admin with map widgets |
+| Path                             | Returns                                                |
+| -------------------------------- | ------------------------------------------------------ |
+| `/`                              | React map: towers, coverage polygons, live fire points |
+| `/api/towers.geojson`            | Towers with coverage polygon + in-range fire count     |
+| `/api/fires.geojson`             | All fire detections                                    |
+| `/api/towers/<id>/fires.geojson` | Fires within one tower's coverage                      |
+| `/admin/`                        | Django admin with map widgets                          |
 
 ## Development
 

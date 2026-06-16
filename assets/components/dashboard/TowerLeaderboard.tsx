@@ -64,8 +64,12 @@ export function TowerLeaderboard() {
                 className="size-2 shrink-0 rounded-full"
                 style={{ backgroundColor: riskColor(r.riskLevel) }}
               />
-              <span className="min-w-0 flex-1 truncate font-medium">{r.name}</span>
-              {r.state && <span className="text-muted-foreground">{r.state}</span>}
+              <span className="min-w-0 flex-1 truncate font-medium">
+                {r.name}
+              </span>
+              {r.state && (
+                <span className="text-muted-foreground">{r.state}</span>
+              )}
               <span className="tabular-nums">{r.fireCount}🔥</span>
               {r.ignitionProbability != null && (
                 <Badge variant="secondary" className="tabular-nums">

@@ -1,13 +1,20 @@
 import { denseDailyTotals } from "@/lib/time";
 import type { TimeWindow } from "@/lib/time";
 import type {
-  FireCollection, FireStats, FireTimeseries, RiskTimeseries,
+  FireCollection,
+  FireStats,
+  FireTimeseries,
+  RiskTimeseries,
   TowerCollection,
 } from "@/lib/types";
 
 export interface RiskDistribution {
-  low: number; moderate: number; high: number;
-  very_high: number; extreme: number; unknown: number;
+  low: number;
+  moderate: number;
+  high: number;
+  very_high: number;
+  extreme: number;
+  unknown: number;
 }
 export interface Kpis {
   activeFires: number;
@@ -35,7 +42,12 @@ export function computeKpis(input: KpiInputs): Kpis {
   const activeFires = fires?.features.length ?? 0;
 
   const dist: RiskDistribution = {
-    low: 0, moderate: 0, high: 0, very_high: 0, extreme: 0, unknown: 0,
+    low: 0,
+    moderate: 0,
+    high: 0,
+    very_high: 0,
+    extreme: 0,
+    unknown: 0,
   };
   for (const f of towers?.features ?? []) {
     const level = f.properties.risk_level;
@@ -44,7 +56,9 @@ export function computeKpis(input: KpiInputs): Kpis {
   }
   const elevatedRisk = dist.high + dist.very_high + dist.extreme;
 
-  const towersInRange = (stats?.per_tower ?? []).filter((t) => t.count > 0).length;
+  const towersInRange = (stats?.per_tower ?? []).filter(
+    (t) => t.count > 0,
+  ).length;
   const towersTotal = towers?.features.length ?? 0;
 
   let peakFrpMw: number | null = null;
@@ -73,7 +87,13 @@ export function computeKpis(input: KpiInputs): Kpis {
   }
 
   return {
-    activeFires, activeFiresSparkline, towersInRange, towersTotal,
-    elevatedRisk, riskDistribution: dist, peakFrpMw, meanIgnitionPct,
+    activeFires,
+    activeFiresSparkline,
+    towersInRange,
+    towersTotal,
+    elevatedRisk,
+    riskDistribution: dist,
+    peakFrpMw,
+    meanIgnitionPct,
   };
 }
