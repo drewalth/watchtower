@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { InitScreen } from "@/components/InitScreen";
-import { MapView } from "@/components/map/MapView";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { cn } from "@/lib/utils";
 import { selectAppReady, selectMapReady, useAppStore } from "@/store/appStore";
 
@@ -45,7 +45,7 @@ export function AppInitializer() {
 
   return (
     <>
-      <MapView />
+      <DashboardShell />
       <InitOverlay hidden={held} />
     </>
   );
