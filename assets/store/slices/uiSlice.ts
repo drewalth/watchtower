@@ -1,6 +1,6 @@
 import type { AppStateCreator, UiSlice } from "./types";
 
-export const createUiSlice: AppStateCreator<UiSlice> = (set) => ({
+export const createUiSlice: AppStateCreator<UiSlice> = (set, get) => ({
   selectedFire: null,
   viewport: null,
   mapReady: false,
@@ -28,5 +28,17 @@ export const createUiSlice: AppStateCreator<UiSlice> = (set) => ({
   clearFocusedTower: () =>
     set((s) => {
       s.focusedTowerId = null;
+    }),
+
+  selectedTowerId: null,
+  selectTower: (id) => {
+    set((s) => {
+      s.selectedTowerId = id;
+    });
+    get().loadTowerRisk(id);
+  },
+  clearSelectedTower: () =>
+    set((s) => {
+      s.selectedTowerId = null;
     }),
 });

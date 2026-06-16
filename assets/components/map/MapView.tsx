@@ -13,6 +13,7 @@ import { MapLegend } from "@/components/map/MapLegend";
 import { MapReadyReporter } from "@/components/map/MapReadyReporter";
 import { MapViewportSync } from "@/components/map/MapViewportSync";
 import { SelectedFirePopup } from "@/components/map/SelectedFirePopup";
+import { SelectedTowerPopup } from "@/components/map/SelectedTowerPopup";
 import { TowerMarkers } from "@/components/map/TowerMarkers";
 import { useMapStyle } from "@/components/map/useMapStyle";
 import { SATELLITE_STYLE } from "@/lib/basemap";
@@ -59,6 +60,7 @@ export function MapView() {
       <FireClusterLayer />
       <TowerFocuser />
       <SelectedFirePopup />
+      <SelectedTowerPopup />
       <MapLegend />
     </Map>
   );

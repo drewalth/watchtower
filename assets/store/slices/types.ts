@@ -107,6 +107,11 @@ export interface UiSlice {
   focusedTowerId: number | null;
   focusTower: (id: number) => void;
   clearFocusedTower: () => void;
+  selectedTowerId: number | null;
+  /** Select a tower to open its detail popup; also lazily loads its risk. Set by
+   *  a marker click and by the leaderboard fly-to (via TowerFocuser). */
+  selectTower: (id: number) => void;
+  clearSelectedTower: () => void;
 }
 
 /** The full combined store type. */
