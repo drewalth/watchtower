@@ -164,9 +164,20 @@ export function FilterSearchControl() {
                   }
                   className="w-full"
                 >
-                  <ToggleGroupItem value={ALL_STATES}>All</ToggleGroupItem>
+                  <ToggleGroupItem
+                    value={ALL_STATES}
+                    className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                    aria-label="All states"
+                  >
+                    All
+                  </ToggleGroupItem>
                   {states.map((s) => (
-                    <ToggleGroupItem key={s} value={s}>
+                    <ToggleGroupItem
+                      key={s}
+                      value={s}
+                      className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                      aria-label={s}
+                    >
                       {s}
                     </ToggleGroupItem>
                   ))}
