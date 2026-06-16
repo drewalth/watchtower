@@ -8,7 +8,7 @@ export function PresetBar() {
     useShallow((s) => ({ preset: s.preset, setPreset: s.setPreset })),
   );
   return (
-    <div className="flex items-center gap-0.5 rounded-md border border-surface-border bg-muted/40 p-0.5">
+    <div className="hidden items-center gap-0.5 rounded-md border border-surface-border bg-muted/40 p-0.5 sm:flex">
       {PRESETS.map((p) => (
         <button
           key={p.key}

@@ -15,7 +15,7 @@ export function FreshnessPill() {
           running ? "animate-pulse bg-ember" : "bg-risk-low",
         )}
       />
-      <span className="text-muted-foreground">
+      <span className="hidden text-muted-foreground sm:inline">
         {running ? "refreshing…" : stamp ? `updated ${relative(stamp)}` : "—"}
       </span>
     </div>

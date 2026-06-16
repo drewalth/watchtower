@@ -30,7 +30,10 @@ export function TowerMarkers() {
                 <TowerControl className="size-4" />
               </div>
             </MarkerContent>
-            <MarkerPopup closeButton>
+            <MarkerPopup
+              closeButton
+              className="rounded-lg border-surface-border bg-surface text-foreground shadow-lg backdrop-blur-md"
+            >
               <TowerPopup props={f.properties} />
             </MarkerPopup>
           </MapMarker>

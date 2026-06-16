@@ -46,7 +46,7 @@ export function AnalyticsDock() {
     );
   }
   return (
-    <GlassPanel className="z-10 m-2 ml-0 flex w-[340px] max-w-[92vw] flex-col rounded-xl">
+    <GlassPanel className="absolute inset-y-2 right-2 z-20 flex w-[340px] max-w-[92vw] flex-col rounded-xl lg:static lg:inset-auto lg:z-10 lg:m-2 lg:ml-0">
       <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
         <div className="flex items-center justify-between gap-2 border-b border-surface-border p-2">
           <TabsList className="bg-muted/40">

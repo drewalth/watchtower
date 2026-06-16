@@ -20,6 +20,7 @@ export function SelectedFirePopup() {
       latitude={selectedFire.lat}
       onClose={() => selectFire(null)}
       closeButton
+      className="rounded-lg border-surface-border bg-surface text-foreground shadow-lg backdrop-blur-md"
     >
       <FirePopup props={selectedFire.props} />
     </MapPopup>

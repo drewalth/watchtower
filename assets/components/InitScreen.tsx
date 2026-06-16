@@ -13,7 +13,7 @@ const ACCENT = "#ef6548";
 function StateIcon({ state }: { state: LoadState }) {
   switch (state) {
     case "loaded":
-      return <Check className="size-4 text-emerald-600" />;
+      return <Check className="size-4 text-emerald-400" />;
     case "failed":
       return <AlertCircle className="text-destructive size-4" />;
     case "loading":
@@ -67,21 +67,29 @@ export function InitScreen() {
   const progress = Math.round((steps / 4) * 100);
 
   return (
-    <div className="bg-background text-foreground flex h-full w-full items-center justify-center p-4">
-      <div className="bg-card w-[320px] max-w-full rounded-xl border p-6 shadow-sm">
-        <div className="mb-5 flex items-center gap-2">
+    <div className="relative flex h-full w-full items-center justify-center overflow-hidden bg-slate-950 p-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(60% 50% at 50% 40%, rgba(239,101,72,0.18), transparent 70%)",
+        }}
+      />
+      <div className="relative w-[320px] max-w-full rounded-2xl border border-white/10 bg-white/[0.04] p-6 shadow-2xl backdrop-blur-xl">
+        <div className="mb-1 flex items-center gap-2">
           <Flame className="size-5" style={{ color: ACCENT }} />
-          <span className="text-lg font-semibold">Watchtower</span>
+          <span className="text-lg font-semibold text-slate-50">Watchtower</span>
         </div>
+        <p className="mb-5 text-xs text-slate-400">Wildfire ops console</p>
 
         <ul className="space-y-2.5">
           {rows.map((row) => (
             <li
               key={row.label}
               className={cn(
-                "flex items-center gap-2.5 text-sm",
-                (!row.critical || row.state === "initial") &&
-                  "text-muted-foreground",
+                "flex items-center gap-2.5 text-sm text-slate-200",
+                (!row.critical || row.state === "initial") && "text-slate-500",
               )}
             >
               <span className="flex size-4 items-center justify-center">
@@ -93,23 +101,28 @@ export function InitScreen() {
         </ul>
 
         <div className="mt-5">
-          <div className="bg-muted h-2 w-full overflow-hidden rounded-full">
+          <div className="h-2 w-full overflow-hidden rounded-full bg-white/10">
             <div
               className="h-full rounded-full transition-[width] duration-500 ease-out"
               style={{ width: `${progress}%`, backgroundColor: ACCENT }}
             />
           </div>
-          <div className="text-muted-foreground mt-1.5 text-right text-xs tabular-nums">
+          <div className="mt-1.5 text-right text-xs tabular-nums text-slate-400">
             {progress}%
           </div>
         </div>
 
         {criticalError && (
-          <div className="mt-4 border-t pt-4">
-            <p className="text-destructive mb-2 text-xs">
+          <div className="mt-4 border-t border-white/10 pt-4">
+            <p className="mb-2 text-xs text-destructive">
               Couldn&rsquo;t load map data: {criticalError}
             </p>
-            <Button size="sm" variant="outline" onClick={retry}>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={retry}
+              className="border-white/20 text-slate-100 hover:bg-white/10 hover:text-white"
+            >
               Retry
             </Button>
           </div>
