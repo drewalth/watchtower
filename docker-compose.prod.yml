@@ -35,13 +35,12 @@ services:
       retries: 5
 
   # One-shot bootstrap: schema, seed data, demo admin. Exits 0; web/scheduler
-  # wait on it via service_completed_successfully (so there is no seed/viewshed race).
+  # wait on it via service_completed_successfully (so there is no seed/viewshed
+  # race). The step sequence lives in scripts/bootstrap.sh, shared with the dev
+  # stack so the two can't drift.
   init:
     <<: *app
-    command: >
-      sh -c 'python manage.py migrate --noinput &&
-             python manage.py seed_towers &&
-             (python manage.py createsuperuser --noinput || true)'
+    command: sh scripts/bootstrap.sh
     environment:
       <<: *prod-env
       # Demo superuser (insecure on purpose — single-user demo). createsuperuser
@@ -71,14 +70,11 @@ services:
         condition: service_completed_successfully
     restart: unless-stopped
 
+  # Data refresh. The step sequence lives in scripts/scheduler.sh, shared with
+  # the dev stack so the two can't drift.
   scheduler:
     <<: *app
-    command: >
-      sh -c 'python manage.py compute_viewsheds --only-missing --track || true;
-             while true; do
-               python manage.py run_ingest_cycle || true;
-               sleep 3600;
-             done'
+    command: sh scripts/scheduler.sh
     environment:
       <<: *prod-env
     depends_on:

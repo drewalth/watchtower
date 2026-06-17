@@ -37,14 +37,15 @@ function selectVisible(s: { processingStages: { status: ProcessingStageStatus }[
   );
 }
 
-/** Pill summary counts — subscribe to the full stages array only when visible. */
+/** Pill summary counts. Each selector returns a primitive so Zustand's default
+ *  `Object.is` comparison is stable — returning a fresh `{done,total}` object
+ *  here would change identity every render and spin an infinite re-render loop. */
 function useCompletedCount() {
-  return useAppStore((s) => {
-    const done = s.processingStages.filter(
-      (st) => st.status === "completed",
-    ).length;
-    return { done, total: s.processingStages.length };
-  });
+  const done = useAppStore(
+    (s) => s.processingStages.filter((st) => st.status === "completed").length,
+  );
+  const total = useAppStore((s) => s.processingStages.length);
+  return { done, total };
 }
 
 /**

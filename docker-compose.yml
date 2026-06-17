@@ -31,6 +31,23 @@ services:
     ports:
       - "5432:5432"
 
+  # One-shot bootstrap (migrate → seed → optional demo admin), then exit 0. Both
+  # `web` and `scheduler` wait on it (service_completed_successfully) so neither
+  # touches the DB before the schema + seed data exist — and it runs exactly once
+  # instead of racing from two services. The step sequence lives in
+  # scripts/bootstrap.sh, shared with the prod stack so the two can't drift.
+  init:
+    build: .
+    command: sh scripts/bootstrap.sh
+    volumes:
+      - .:/app
+    environment:
+      <<: *app-env
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+
   web:
     build: .
     command: python manage.py runserver 0.0.0.0:8000
@@ -43,25 +60,16 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
 
-  # Hourly data refresh. Reuses the `web` image (GDAL et al. already baked in)
-  # and loops `run_ingest_cycle` → sleep 1h. Runs once immediately on start so a
-  # fresh `docker compose up` populates data right away. `run_ingest_cycle`
-  # brackets the four ingest steps with an IngestionRun row (running → completed)
-  # so the web UI can show a refresh-in-progress toast; it isolates each step
-  # internally (a failure is recorded, the rest still run), and the outer
-  # `|| true` keeps the loop alive even if the whole cycle errors.
-  #   run_ingest_cycle = ingest_fires --day-range 2 (rolling 48h FIRMS window)
-  #                    → ingest_weather (daily FWI inputs per tower, Open-Meteo)
-  #                    → compute_fire_risk (risk from the freshest weather)
-  #                    → predict_ignition (ML probability; no-op until a model exists)
+  # Data refresh: compute missing viewsheds once on start, then loop the hourly
+  # ingest cycle. The step sequence lives in scripts/scheduler.sh, shared with the
+  # prod stack so the two can't drift (skipping viewsheds in dev was exactly such
+  # a drift bug). See that script for the per-step rationale.
   scheduler:
     build: .
-    command: >
-      sh -c 'while true; do
-        python manage.py run_ingest_cycle || true;
-        sleep 3600;
-      done'
+    command: sh scripts/scheduler.sh
     volumes:
       - .:/app
     environment:
@@ -69,6 +77,8 @@ services:
     depends_on:
       db:
         condition: service_healthy
+      init:
+        condition: service_completed_successfully
     restart: unless-stopped
 
 volumes:
