@@ -1,7 +1,9 @@
 [project]
 name = "watchtower"
 version = "0.1.0"
-description = "GeoDjango + PostGIS web map of wildfire lookout cameras and the active fires they can see."
+description = "GeoDjango + PostGIS web map of wildfire lookout towers and the active fires they can see."
+license = "MIT"
+authors = [{ name = "Andrew Althage" }]
 requires-python = ">=3.12"
 dependencies = [
     # Phase 0 — core framework + spatial DB driver.
@@ -35,3 +37,20 @@ dev = [
 # This is a Django application, not a distributable package, so uv shouldn't
 # try to build/install it — just manage the environment.
 package = false
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+# A deliberate, green baseline rather than an aspirational rule set: pycodestyle
+# errors (E), pyflakes correctness checks (F, e.g. unused imports / undefined
+# names), and import sorting (I). Stylistic modernizers (UP) and opinionated
+# lint (B) are intentionally left off — they flag pervasive but harmless idioms
+# (Optional[X] vs X | None, timezone.utc vs datetime.UTC) whose churn isn't worth
+# it here. Enable them as a follow-up if desired.
+select = ["E", "F", "I"]
+# Line length is a formatting concern, not a correctness one; left to author
+# judgment (a few long mock-patch paths in tests run past 100). Matches the
+# project's prior practice — ruff's default rule set never enforced E501 either.
+ignore = ["E501"]

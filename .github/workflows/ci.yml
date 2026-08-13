@@ -1,0 +1,92 @@
+# CI for watchtower — GeoDjango + PostGIS wildfire lookout map.
+#
+# WHY DOCKER FOR THE BACKEND:
+# GeoDjango requires native GDAL/GEOS/PROJ libraries at exact versions.
+# Rather than wrestling with apt packages on the runner, we let the project's
+# own Dockerfile set up the environment — the same image developers use locally.
+# This means CI and dev can never drift on spatial library versions.
+#
+# The compose startup sequence is:
+#   db (PostGIS, healthchecked) → init (migrate + seed, exit 0) → web / tests
+# We replicate that here: bring up `init` with --wait so it gates on db health
+# and completes migration+seeding before we run ruff or pytest.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Backend: ruff lint + pytest inside the project's Docker image.
+  # PostGIS and all GDAL/GEOS/PROJ native libs are provided by the image.
+  # --------------------------------------------------------------------------
+  backend:
+    name: Backend (ruff + pytest)
+    runs-on: ubuntu-latest
+
+    env:
+      # Compose reads these from the environment before .env is loaded.
+      # These match the defaults in docker-compose.yml so no .env file is needed.
+      POSTGRES_DB: watchtower
+      POSTGRES_USER: watchtower
+      POSTGRES_PASSWORD: watchtower
+      DJANGO_SECRET_KEY: ci-insecure-key
+      DJANGO_DEBUG: "1"
+      # Optional: set FIRMS_MAP_KEY as a repo secret to enable live-ingest tests.
+      # The test suite mocks all network calls so this is not required.
+      FIRMS_MAP_KEY: ${{ secrets.FIRMS_MAP_KEY }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build the web image
+        run: docker compose build web
+
+      - name: Start db + run migrations and seeding (init service)
+        # --wait blocks until the init service exits successfully (which gates
+        # on the db healthcheck passing first). This mirrors `docker compose up`
+        # in development — web and tests never run before the schema is ready.
+        run: docker compose up -d --wait init
+
+      - name: Ruff lint
+        run: docker compose run --rm web ruff check .
+
+      - name: Pytest
+        run: docker compose run --rm web pytest
+
+      - name: Tear down
+        if: always()
+        run: docker compose down -v
+
+  # --------------------------------------------------------------------------
+  # Frontend: TypeScript type-check + vitest + Vite production build.
+  # Runs on the host — no Docker needed (no native spatial libs required).
+  # --------------------------------------------------------------------------
+  frontend:
+    name: Frontend (typecheck + test + build)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: TypeScript type-check
+        run: npm run typecheck
+
+      - name: Vitest unit tests
+        run: npm run test
+
+      - name: Vite production build
+        run: npm run build

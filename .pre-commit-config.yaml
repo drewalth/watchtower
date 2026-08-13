@@ -1,0 +1,21 @@
+# Mirrors the CI lint/format gates: ruff (Python) + prettier (TS/JSON/MD/CSS).
+# Install with `pre-commit install`; the ruff rev tracks the project's ruff floor
+# in pyproject.toml so local hooks and CI never disagree on rules.
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.17
+    hooks:
+      - id: ruff          # lint (with --fix)
+        args: [--fix]
+      - id: ruff-format   # formatter
+
+  # Prettier via a local hook using the project's own pinned binary (devDependency)
+  # rather than the archived `mirrors-prettier` repo — one source of truth for the
+  # formatter version, shared with `npm run format:*`.
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: npx prettier --write
+        language: system
+        types_or: [ts, tsx, json, markdown, css]

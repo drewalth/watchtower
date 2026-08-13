@@ -20,6 +20,7 @@ db.sqlite3-journal
 .pytest_cache/
 .coverage
 htmlcov/
+.playwright-mcp/
 
 # Editors / OS
 .idea/
