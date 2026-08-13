@@ -54,6 +54,12 @@ jobs:
       - name: Ruff lint
         run: docker compose run --rm web ruff check .
 
+      # Formatting is a separate gate from linting: `ruff check` enforces the
+      # E/F/I rule set, this enforces the formatter. Both are pre-commit hooks,
+      # so CI must check both or the hooks and CI disagree.
+      - name: Ruff format check
+        run: docker compose run --rm web ruff format --check .
+
       - name: Pytest
         run: docker compose run --rm web pytest
 
@@ -84,6 +90,10 @@ jobs:
 
       - name: TypeScript type-check
         run: npm run typecheck
+
+      # Mirrors the prettier pre-commit hook (same pinned devDependency binary).
+      - name: Prettier format check
+        run: npm run format:check
 
       - name: Vitest unit tests
         run: npm run test
