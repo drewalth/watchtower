@@ -1,7 +1,7 @@
 {
   "name": "watchtower",
   "version": "1.0.0",
-  "description": "A GeoDjango + PostGIS web map of wildfire lookout cameras that answers: **\"which active fires can each tower currently see?\"** using live NASA FIRMS satellite data.",
+  "description": "A GeoDjango + PostGIS web map of wildfire lookout towers that answers: \"which active fires can each tower currently see?\" using live NASA FIRMS satellite data.",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -12,9 +12,9 @@
     "format:write": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["geodjango","postgis","wildfire","maplibre","nasa-firms","viewshed","fwi","machine-learning","gis"],
+  "author": "Andrew Althage",
+  "license": "MIT",
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.16",
     "@testing-library/react": "16.3.2",
