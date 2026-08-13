@@ -84,7 +84,7 @@ class OpenMeteoResponse(BaseModel):
         ]
 
 
-def _nan_to_none(value):
+def _nan_to_none(value: object) -> object:
     """NaN/blank → None; pandas yields NaN floats for missing CSV cells."""
     if value is None:
         return None

@@ -15,8 +15,14 @@ The chain, from raw noon weather to the final index:
 FFMC/DMC/DC are recursive: each day starts from the previous day's value, so the
 caller persists them and feeds them back in (see ``compute_fire_risk``).
 """
+from __future__ import annotations
+
 import math
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from towers.schemas import WeatherDay
 
 # Effective day-length factors by month (1–12) for DMC (Le) and DC (Lf), for the
 # northern hemisphere — Van Wagner & Pickett (1985), tables 1 and 2.
@@ -174,7 +180,7 @@ def calc_fwi(isi: float, bui: float) -> float:
     return b
 
 
-def daily_fwi(prev: FwiCodes, weather) -> FwiResult:
+def daily_fwi(prev: FwiCodes, weather: WeatherDay) -> FwiResult:
     """Advance the FWI system one day from ``prev`` codes given a ``WeatherDay``."""
     month = weather.date.month
     ffmc = calc_ffmc(prev.ffmc, weather.temp_c, weather.rh_pct, weather.wind_kph, weather.precip_24h_mm)

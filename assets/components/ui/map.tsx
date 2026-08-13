@@ -297,6 +297,9 @@ const Map = forwardRef<MapRef, MapProps>(function Map(
       setIsStyleLoaded(false);
       setMapInstance(null);
     };
+    // Init-once: the MapLibre instance is created once for the container's lifetime;
+    // re-running on dep changes (style, theme, viewport) would destroy and recreate the map.
+    // All post-init concerns are handled by dedicated effects below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -473,6 +476,9 @@ function MapMarker({
 
     return markerInstance;
 
+    // Init-once: the Marker instance must be created once and mutated imperatively
+    // (setLngLat, setDraggable) in the render body below; all handlers read the
+    // latest callbacks via callbacksRef so they never need to be re-registered.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -485,6 +491,9 @@ function MapMarker({
       marker.remove();
     };
 
+    // `marker` is a stable ref (created once in useMemo above); listing it would
+    // cause an eslint false-positive — the effect correctly re-runs only when the
+    // map instance appears (mount) or disappears (unmount).
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
@@ -590,6 +599,8 @@ function MarkerPopup({
       .setDOMContent(container);
 
     return popupInstance;
+    // Init-once: the Popup instance is created once and mutated imperatively
+    // (setOffset, setMaxWidth) in the render body below when it is open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -602,6 +613,8 @@ function MarkerPopup({
     return () => {
       marker.setPopup(null);
     };
+    // `popup` and `marker` are stable refs (created once above); the effect
+    // correctly re-runs only when the map instance becomes available or is torn down.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
@@ -660,6 +673,8 @@ function MarkerTooltip({
     }).setMaxWidth("none");
 
     return tooltipInstance;
+    // Init-once: the Popup used as a tooltip is created once; hover listeners
+    // registered in the effect below call setLngLat/addTo imperatively on each hover.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -681,6 +696,8 @@ function MarkerTooltip({
       marker.getElement()?.removeEventListener("mouseleave", handleMouseLeave);
       tooltip.remove();
     };
+    // `tooltip` and `marker` are stable refs (created once above); re-subscribing
+    // hover listeners on every render would stack duplicate handlers.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
@@ -1002,6 +1019,8 @@ function MapPopup({
       .setLngLat([longitude, latitude]);
 
     return popupInstance;
+    // Init-once: the Popup is seeded with the initial position; subsequent lat/lon
+    // changes are applied imperatively via setLngLat in the render body below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1021,6 +1040,9 @@ function MapPopup({
         popup.remove();
       }
     };
+    // `popup` is a stable ref (created once above); `onClose` is read via
+    // onCloseRef so it never needs to re-subscribe. Re-running on `popup` or
+    // callback changes would remove and re-add the popup on every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [map]);
 
@@ -1137,6 +1159,9 @@ function MapRoute({
         // ignore
       }
     };
+    // Layer/source setup runs once after the map is ready; paint/coordinate
+    // changes are applied by separate effects below so the layer is not torn
+    // down and recreated on every prop update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, map]);
 
@@ -1454,6 +1479,9 @@ function MapArc<T extends MapArcDatum = MapArcDatum>({
         // ignore
       }
     };
+    // Layer/source setup (including the invisible hit-target layer) runs once
+    // after the map is ready; data, paint, and interaction changes are applied
+    // by the dedicated effects below so the layers are not recreated on every update.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, map]);
 
@@ -1706,6 +1734,9 @@ function MapClusterLayer<
         // ignore
       }
     };
+    // Layer/source setup (cluster, count, and unclustered layers) runs once after
+    // the map is ready; data and style updates are applied by the dedicated effects
+    // below so all three layers are not torn down and recreated on every prop change.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLoaded, map, sourceId]);
 

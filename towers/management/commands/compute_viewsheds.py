@@ -1,3 +1,20 @@
+"""Compute terrain viewsheds for lookout towers from the Copernicus GLO-30 DEM.
+
+Delegates to ``towers.viewshed.compute_viewshed`` for each tower, which fetches
+DEM tiles over HTTP from AWS, mosaics and reprojects them to UTM with GDAL, runs
+``gdal_viewshed``, then polygonizes the result back to SRID 4326 for storage.
+The stored ``WatchtowerSite.viewshed`` polygon supersedes the naive radius circle
+for coverage queries and fire counting once it is present.
+
+This command requires the GDAL CLI tools (``gdalbuildvrt``, ``gdalwarp``,
+``gdal_viewshed``) — run it inside the Docker container. Each tower takes roughly
+one minute.
+
+``--only-missing`` is the safe re-run flag after adding new towers: it skips
+towers that already have a viewshed so existing computation is not wasted.
+``--track`` records the run in ``IngestionRun`` so the frontend status pill can
+show viewshed progress.
+"""
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 

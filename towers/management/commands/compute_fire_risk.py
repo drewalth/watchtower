@@ -1,3 +1,21 @@
+"""Walk each tower's ``WeatherObservation`` history through the Canadian FWI System.
+
+The FWI System is **recursive**: FFMC, DMC, and DC each depend on the previous
+day's values, so the computation must walk the time series in order. This
+command seeds the chain from ``STARTUP_CODES`` and carries the codes forward day
+by day, writing a ``FireRiskAssessment`` per tower-day (idempotent on
+``(tower, date)`` via ``update_or_create``).
+
+Snow-covered days short-circuit the FWI math: fuels are saturated, so risk is
+zeroed and the codes are reset to spring start-up values via ``apply_snow``,
+ready for the next bare-ground day. This mirrors the Van Wagner & Pickett
+over-wintering procedure.
+
+Designed to run after ``ingest_weather`` (or ``backfill_weather`` for history).
+Re-running is safe and recomputes everything from the start of each tower's
+record (not incremental — correctness over the recursive chain matters more than
+skipping already-computed rows).
+"""
 from django.core.management.base import BaseCommand, CommandError
 
 from towers.fire_weather import (

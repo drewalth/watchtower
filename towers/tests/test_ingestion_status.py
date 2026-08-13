@@ -9,7 +9,6 @@ from django.utils import timezone
 
 from towers.models import IngestionRun, WatchtowerSite
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------

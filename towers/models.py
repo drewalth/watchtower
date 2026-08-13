@@ -1,5 +1,37 @@
+"""Domain models — the persistent core of the watchtower pipeline.
+
+Everything the system knows about the physical world lives here: lookout sites,
+satellite fire detections, daily weather, computed FWI risk, ML ignition
+predictions, and the administrative run-tracking used by the status endpoint.
+
+The central operation is a **spatial join**: ``WatchtowerSite.fires_in_range``
+finds which ``FireDetection`` records fall inside a tower's coverage area (either
+its terrain viewshed or a naive radius circle). The join is intentionally lazy
+— a QuerySet — so callers can chain further filters (e.g. ``since=``) without
+extra round-trips.
+
+**SRID convention.** All geometry is stored and served in SRID 4326 (WGS84
+lat/lon). Any math requiring metric distances (radius buffers, viewshed
+computation) reprojects to the tower's local UTM zone on the fly
+(``_metric_srid``). Never store projected coordinates.
+
+**Idempotent ingest.** Both ``FireDetection`` and ``WeatherObservation`` carry a
+stable ``external_uid`` so ``update_or_create`` can re-ingest the same source
+without creating duplicates — re-running any ETL command is always safe.
+
+Phase 4 adds ``WeatherObservation`` + ``FireRiskAssessment`` (daily FWI system
+output). Phase 5 adds ``IgnitionPrediction`` (ML probability per tower-day).
+``IngestionRun`` is the shared state between the scheduler sidecar and the
+frontend status endpoint.
+"""
+from __future__ import annotations
+
+from typing import Optional
+
 from django.contrib.gis.db import models
+from django.contrib.gis.geos import GEOSGeometry
 from django.contrib.gis.measure import D
+from django.db.models import QuerySet
 
 
 class FuelType(models.TextChoices):
@@ -64,10 +96,10 @@ class WatchtowerSite(models.Model):
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
-    def __str__(self):
+    def __str__(self) -> str:
         return self.name
 
-    def _metric_srid(self):
+    def _metric_srid(self) -> int:
         """WGS84/UTM SRID for this tower's longitude (northern hemisphere).
 
         Per-tower UTM gives accurate metre distances locally, unlike Web Mercator
@@ -76,7 +108,7 @@ class WatchtowerSite(models.Model):
         zone = int((self.location.x + 180) // 6) + 1
         return 32600 + zone  # 326NN = WGS84 / UTM zone NN North
 
-    def coverage_area(self):
+    def coverage_area(self) -> GEOSGeometry:
         """Coverage polygon in EPSG:4326: the terrain viewshed if computed, else
         the radius circle (buffered in UTM metres, then reprojected back to 4326).
         """
@@ -89,25 +121,25 @@ class WatchtowerSite(models.Model):
         return circle
 
     @property
-    def coverage_kind(self):
+    def coverage_kind(self) -> str:
         return "viewshed" if self.viewshed is not None else "circle"
 
     @property
-    def fuel_factor(self):
+    def fuel_factor(self) -> float:
         """Vegetation multiplier for risk scoring (see fire_weather.to_risk)."""
         return _FUEL_FACTORS.get(self.fuel_type, 1.0)
 
     @property
-    def latest_risk(self):
+    def latest_risk(self) -> Optional[FireRiskAssessment]:
         """Most recent FireRiskAssessment for this tower, or None if none yet."""
         return self.risk_assessments.order_by("-date").first()
 
     @property
-    def latest_prediction(self):
+    def latest_prediction(self) -> Optional[IgnitionPrediction]:
         """Most recent ML IgnitionPrediction for this tower, or None if none yet."""
         return self.predictions.order_by("-date", "-created_at").first()
 
-    def fires_in_range(self, since=None):
+    def fires_in_range(self, since=None) -> QuerySet[FireDetection]:
         """FireDetections this tower can see: inside the viewshed polygon if one
         is computed, else within the radius. ``distance_lte`` uses 'spheroid' to
         measure true ground metres rather than degrees. ``since`` filters by recency.

@@ -13,6 +13,7 @@ import math
 import subprocess
 import tempfile
 from pathlib import Path
+from typing import Optional
 
 import rasterio
 from django.contrib.gis.geos import GEOSGeometry, MultiPolygon
@@ -25,7 +26,7 @@ _DEM_HOST = "https://copernicus-dem-30m.s3.amazonaws.com"
 _DEM_RES_M = 30  # GLO-30 is ~30 m / 1 arc-second.
 
 
-def _tile_name(lat_sw, lon_sw):
+def _tile_name(lat_sw: int, lon_sw: int) -> str:
     """Copernicus COG tile name for the 1° tile with this SW corner."""
     ns = "N" if lat_sw >= 0 else "S"
     ew = "E" if lon_sw >= 0 else "W"
@@ -35,12 +36,12 @@ def _tile_name(lat_sw, lon_sw):
     )
 
 
-def _tile_url(lat_sw, lon_sw):
+def _tile_url(lat_sw: int, lon_sw: int) -> str:
     name = _tile_name(lat_sw, lon_sw)
     return f"/vsicurl/{_DEM_HOST}/{name}/{name}.tif"
 
 
-def _tiles_for_bbox(west, south, east, north):
+def _tiles_for_bbox(west: float, south: float, east: float, north: float) -> list[str]:
     """The /vsicurl URLs of every 1° DEM tile overlapping the bbox."""
     urls = []
     for lat_sw in range(math.floor(south), math.floor(north) + 1):
@@ -49,12 +50,13 @@ def _tiles_for_bbox(west, south, east, north):
     return urls
 
 
-def _utm_srid(lon, lat):
+def _utm_srid(lon: float, lat: float) -> int:
+    """WGS84/UTM SRID for a lon/lat point, supporting both hemispheres."""
     zone = int((lon + 180) // 6) + 1
     return (32600 if lat >= 0 else 32700) + zone
 
 
-def _run(cmd):
+def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     """Run a GDAL CLI command, raising with stderr on failure."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
@@ -64,7 +66,7 @@ def _run(cmd):
     return result
 
 
-def compute_viewshed(tower, mast_height_m=10.0):
+def compute_viewshed(tower, mast_height_m: float = 10.0) -> Optional[MultiPolygon]:
     """Return the tower's viewshed as a 4326 MultiPolygon (or None if empty).
 
     ``mast_height_m`` is the observer height above the DEM ground surface; the
@@ -86,10 +88,10 @@ def compute_viewshed(tower, mast_height_m=10.0):
     observer.transform(utm)
 
     with tempfile.TemporaryDirectory() as tmp:
-        tmp = Path(tmp)
-        vrt = tmp / "dem.vrt"
-        dem_utm = tmp / "dem_utm.tif"
-        visible = tmp / "visible.tif"
+        work_dir = Path(tmp)
+        vrt = work_dir / "dem.vrt"
+        dem_utm = work_dir / "dem_utm.tif"
+        visible = work_dir / "visible.tif"
 
         # 1+2. Mosaic the relevant DEM tiles, then warp/clip to UTM metres.
         _run(["gdalbuildvrt", str(vrt), *_tiles_for_bbox(west, south, east, north)])

@@ -11,6 +11,7 @@ import json
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pandas as pd
 from django.conf import settings
 from django.core.management.base import BaseCommand, CommandError
 from sklearn.metrics import (
@@ -117,8 +118,6 @@ class Command(BaseCommand):
         if len(set(test["labels"])) < 2:
             return None
         baseline = build_baseline(train["records"], train["labels"])
-        import pandas as pd
-
         X = pd.DataFrame([{BASELINE_FEATURE: r[BASELINE_FEATURE]} for r in test["records"]])
         proba = baseline.predict_proba(X)[:, 1]
         return float(average_precision_score(test["labels"], proba))

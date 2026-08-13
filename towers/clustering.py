@@ -25,7 +25,10 @@ CLUSTER_LINK_DEGREES = 1.5
 MAX_CLUSTER_SPAN_DEGREES = 8.0
 
 
-def _extent_gap(a, b):
+_Extent = tuple[float, float, float, float]  # (west, south, east, north)
+
+
+def _extent_gap(a: _Extent, b: _Extent) -> float:
     """Smallest axis gap (degrees) between two ``(west, south, east, north)`` extents.
 
     0 if they overlap or touch on both axes; otherwise the larger of the x-gap
@@ -38,7 +41,10 @@ def _extent_gap(a, b):
     return max(dx, dy)
 
 
-def cluster_extents(extents, link_degrees=CLUSTER_LINK_DEGREES):
+def cluster_extents(
+    extents: list[_Extent],
+    link_degrees: float = CLUSTER_LINK_DEGREES,
+) -> list[list[int]]:
     """Single-linkage connected components over a list of ``(w, s, e, n)`` extents.
 
     Two extents share a cluster when their gap <= ``link_degrees``, transitively.
@@ -71,7 +77,7 @@ def cluster_extents(extents, link_degrees=CLUSTER_LINK_DEGREES):
     return [groups[root] for root in sorted(groups)]
 
 
-def _merge_extents(extents):
+def _merge_extents(extents: list[_Extent]) -> _Extent:
     """Bounding ``(west, south, east, north)`` of several extents."""
     return (
         min(e[0] for e in extents),
@@ -81,8 +87,11 @@ def _merge_extents(extents):
     )
 
 
-def cluster_bboxes(coverage_areas, link_degrees=CLUSTER_LINK_DEGREES,
-                   max_span=MAX_CLUSTER_SPAN_DEGREES):
+def cluster_bboxes(
+    coverage_areas: list,
+    link_degrees: float = CLUSTER_LINK_DEGREES,
+    max_span: float = MAX_CLUSTER_SPAN_DEGREES,
+) -> tuple[list[_Extent], list[_Extent]]:
     """Cluster GEOS coverage polygons (SRID 4326) into FIRMS-sized bboxes.
 
     Returns ``(bboxes, oversized)`` where ``bboxes`` is a list of

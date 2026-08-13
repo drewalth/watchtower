@@ -1,3 +1,17 @@
+"""Seed the database with 27 real western-US fire lookout towers.
+
+This is a one-time bootstrap (idempotent via ``update_or_create`` on the tower
+name) that populates ``WatchtowerSite`` with hand-verified lookout coordinates
+across California, Colorado, Washington, and Oregon. These specific sites were
+chosen because they are geographically spread enough to exercise the FIRMS
+clustering logic while staying within regions that regularly see wildfire
+activity.
+
+``fuel_type`` is a coarse assignment based on each site's dominant surrounding
+vegetation, used by ``fire_weather.to_risk`` to scale the FWI index. The 50 km
+``coverage_radius_km`` is a generous real-world smoke-spotting radius; Phase 3's
+``compute_viewsheds`` replaces it with actual terrain line-of-sight.
+"""
 from django.contrib.gis.geos import Point
 from django.core.management.base import BaseCommand
 

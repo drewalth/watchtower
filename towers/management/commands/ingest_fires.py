@@ -1,3 +1,23 @@
+"""Ingest VIIRS satellite fire detections from NASA FIRMS into ``FireDetection``.
+
+Pulls the three near-real-time VIIRS sensors by default (NOAA-20, SNPP,
+NOAA-21); a ``--start/--end`` pair switches to standard-processing archive
+sources, chunked into 5-day windows to stay under FIRMS' bbox-area × days cap.
+
+**Isolation model.** Sources and cluster bboxes are fetched independently. A
+failed cluster bbox for a given source only loses that cluster, not the source;
+a source only counts as failed if every bbox fails. Same with archive windows: a
+single 400 response does not abort the whole backfill. The result is that a
+transient FIRMS hiccup (throttle, empty tile, bad archive window) never silently
+drops a whole sensor's data.
+
+**Idempotent.** Re-running any ingest over an already-ingested window upserts on
+``external_uid`` (lat/lon/time/source) and never creates duplicate rows.
+
+**Security.** The FIRMS ``MAP_KEY`` is embedded in the request URL — never log
+it. Any exception text from ``requests`` that might contain the URL is redacted
+before surfacing.
+"""
 import io
 from datetime import date, datetime, timedelta, timezone
 
