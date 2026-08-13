@@ -2,20 +2,13 @@ import requests
 from django.core.management.base import BaseCommand, CommandError
 from pydantic import ValidationError
 
-from towers.models import WatchtowerSite, WeatherObservation
+from towers.models import WatchtowerSite
+from towers.open_meteo import DAILY_VARS, upsert_observations
 from towers.schemas import OpenMeteoResponse
 
 # Open-Meteo forecast endpoint. Free, no API key. We request one daily block
 # carrying every FWI input (noon-proxy temp/RH/wind, 24h precip) plus snow depth.
 OPEN_METEO_URL = "https://api.open-meteo.com/v1/forecast"
-DAILY_VARS = (
-    "temperature_2m_max",
-    "relative_humidity_2m_min",
-    "wind_speed_10m_max",
-    "precipitation_sum",
-    "snow_depth_max",
-)
-SOURCE = "open-meteo"
 
 
 class Command(BaseCommand):
@@ -102,24 +95,4 @@ class Command(BaseCommand):
         # anything touches the DB — a renamed/dropped field or a null where we
         # expect a number raises ValidationError, caught and isolated above.
         parsed = OpenMeteoResponse.model_validate(response.json())
-
-        created = updated = 0
-        for day in parsed.to_weather_days():
-            uid = f"{tower.id}_{day.date.isoformat()}_{SOURCE}"
-            _, was_created = WeatherObservation.objects.update_or_create(
-                external_uid=uid,
-                defaults={
-                    "tower": tower,
-                    "date": day.date,
-                    "temp_c": day.temp_c,
-                    "rh_pct": day.rh_pct,
-                    "wind_kph": day.wind_kph,
-                    "precip_24h_mm": day.precip_24h_mm,
-                    "snow_depth_cm": day.snow_depth_cm,
-                    "source": SOURCE,
-                },
-            )
-            created += was_created
-            updated += not was_created
-
-        return {"created": created, "updated": updated}
+        return upsert_observations(tower, parsed.to_weather_days())
