@@ -1,9 +1,40 @@
+"""The read-only HTTP API — hand-rolled GeoJSON/JSON, no DRF.
+
+Every endpoint serializes models by hand into plain dicts and returns a
+``JsonResponse``; there is no serializer layer because the payloads are small,
+stable, and map-shaped. Two conventions hold throughout:
+
+* **Coordinates are always ``[lon, lat]``** (GeoJSON order), the opposite of the
+  ``lat, lon`` most humans say.
+* **Aggregate endpoints stay query-bounded.** The towers feed and per-tower
+  stats deliberately avoid the "one spatial query per tower" N+1: latest risk
+  and ML prediction come from correlated subqueries (``_annotated_towers``) and
+  in-range fire counts from a constant number of aggregate queries
+  (``_fire_count_map``), regardless of how many towers exist.
+
+The surface splits into three groups: the map feeds (``towers``/``fires``
+GeoJSON), the dashboard aggregates (``fires``/``risk`` time series + stats), and
+the ingest ``status`` endpoint the scheduler/UI poll.
+"""
+from __future__ import annotations
+
 import json
 from datetime import date
 
-from django.db.models import Avg, Count, Max, Min
-from django.db.models.functions import TruncDate
-from django.http import JsonResponse
+from django.contrib.gis.measure import D
+from django.db.models import (
+    Avg,
+    Count,
+    IntegerField,
+    Max,
+    Min,
+    OuterRef,
+    QuerySet,
+    Subquery,
+    Value,
+)
+from django.db.models.functions import Coalesce, TruncDate
+from django.http import HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, render
 
 from .models import (
@@ -16,20 +47,105 @@ from .models import (
 
 # FRP (fire radiative power, MW) magnitude bins for the intensity histogram.
 # Open upper bound (None) catches the long tail of very hot detections.
-FRP_BUCKETS = [(0, 10), (10, 50), (50, 100), (100, 500), (500, None)]
+FRP_BUCKETS: list[tuple[int, int | None]] = [(0, 10), (10, 50), (50, 100), (100, 500), (500, None)]
 
 
-def map_view(request):
+def map_view(request: HttpRequest) -> HttpResponse:
     """Render the map page; the React app fetches its data from the API."""
     return render(request, "towers/map.html")
 
 
-def towers_geojson(request):
+def _annotated_towers() -> QuerySet[WatchtowerSite]:
+    """All towers, each annotated with its latest risk + ML prediction fields.
+
+    Replaces the per-tower ``latest_risk`` / ``latest_prediction`` property
+    lookups (two queries per tower) with correlated subqueries, so the towers
+    feed reads every tower's newest assessment and prediction in a single query.
+    The ``[:1]`` slice on an ordered subquery is the standard "latest related
+    row" pattern. Fields are read back off the instances by ``_annotated_*``.
+    """
+    latest_risk = FireRiskAssessment.objects.filter(tower=OuterRef("pk")).order_by("-date")
+    latest_prediction = IgnitionPrediction.objects.filter(tower=OuterRef("pk")).order_by(
+        "-date", "-created_at"
+    )
+    return WatchtowerSite.objects.annotate(
+        latest_risk_level=Subquery(latest_risk.values("risk_level")[:1]),
+        latest_risk_score=Subquery(latest_risk.values("risk_score")[:1]),
+        latest_risk_date=Subquery(latest_risk.values("date")[:1]),
+        latest_ignition_probability=Subquery(latest_prediction.values("probability")[:1]),
+        latest_ignition_horizon=Subquery(latest_prediction.values("horizon_days")[:1]),
+        latest_ignition_version=Subquery(latest_prediction.values("model_version")[:1]),
+    )
+
+
+def _fire_count_map(start: date | None = None, end: date | None = None) -> dict[int, int]:
+    """Map of tower id → in-range fire-detection count, in a constant number of
+    queries rather than one spatial query per tower.
+
+    Mirrors ``WatchtowerSite.fires_in_range`` exactly: viewshed towers match by
+    ``ST_Intersects`` against the stored polygon, radius towers by spheroid
+    ground distance. Radius towers are grouped by their coverage radius (in
+    practice a single value), so each *distinct radius* is one aggregate query —
+    never a per-tower round trip. ``start``/``end`` scope the detections by their
+    UTC calendar day, matching the other filtered endpoints.
+
+    The ``.values(g=Value(1)).annotate(c=Count(...))`` shape collapses each
+    correlated subquery to a single grouped count; ``Coalesce(..., 0)`` turns the
+    "no matching fires" empty result into a real zero.
+    """
+    base = FireDetection.objects.all()
+    if start is not None:
+        base = base.filter(acquired_at__date__gte=start)
+    if end is not None:
+        base = base.filter(acquired_at__date__lte=end)
+
+    counts: dict[int, int] = {}
+
+    # Viewshed towers: one aggregate query, ST_Intersects against each viewshed.
+    intersects_count = (
+        base.filter(location__intersects=OuterRef("viewshed"))
+        .order_by()
+        .values(g=Value(1))
+        .annotate(c=Count("pk"))
+        .values("c")
+    )
+    viewshed_towers = WatchtowerSite.objects.filter(viewshed__isnull=False).annotate(
+        fire_count=Coalesce(Subquery(intersects_count, output_field=IntegerField()), Value(0))
+    )
+    for row in viewshed_towers.values("id", "fire_count"):
+        counts[row["id"]] = row["fire_count"]
+
+    # Radius towers: one aggregate query per distinct radius (usually just one),
+    # reusing the same spheroid distance_lte predicate as fires_in_range.
+    radius_towers = WatchtowerSite.objects.filter(viewshed__isnull=True)
+    for radius in radius_towers.values_list("coverage_radius_km", flat=True).distinct():
+        within_count = (
+            base.filter(
+                location__distance_lte=(OuterRef("location"), D(km=radius), "spheroid")
+            )
+            .order_by()
+            .values(g=Value(1))
+            .annotate(c=Count("pk"))
+            .values("c")
+        )
+        sized = radius_towers.filter(coverage_radius_km=radius).annotate(
+            fire_count=Coalesce(Subquery(within_count, output_field=IntegerField()), Value(0))
+        )
+        for row in sized.values("id", "fire_count"):
+            counts[row["id"]] = row["fire_count"]
+
+    return counts
+
+
+def towers_geojson(request: HttpRequest) -> JsonResponse:
     """All towers as a GeoJSON FeatureCollection.
 
     Each feature carries its coverage polygon and a live in-range fire count.
-    Coordinates are [lon, lat] per the GeoJSON spec.
+    Coordinates are [lon, lat] per the GeoJSON spec. Built from a single
+    annotated towers query plus a constant-query fire-count map — see
+    ``_annotated_towers`` / ``_fire_count_map`` — so it never N+1s over towers.
     """
+    fire_counts = _fire_count_map()
     features = [
         {
             "type": "Feature",
@@ -43,24 +159,57 @@ def towers_geojson(request):
                 "state": site.state,
                 "elevation_m": site.elevation_m,
                 "coverage_radius_km": site.coverage_radius_km,
-                "fire_count": site.fires_in_range().count(),
+                "fire_count": fire_counts.get(site.id, 0),
                 # "viewshed" (terrain line-of-sight) or "circle" (naive radius).
                 "coverage_kind": site.coverage_kind,
                 # Latest fire-risk rating (None until compute_fire_risk has run).
-                **_risk_summary(site.latest_risk),
+                **_annotated_risk_summary(site),
                 # Latest ML ignition probability (None until a model is trained).
-                **_prediction_summary(site.latest_prediction),
+                **_annotated_prediction_summary(site),
                 # GEOSGeometry.geojson is a string; parse so it nests as JSON.
                 "coverage": json.loads(site.coverage_area().geojson),
             },
         }
-        for site in WatchtowerSite.objects.all()
+        for site in _annotated_towers()
     ]
     return JsonResponse({"type": "FeatureCollection", "features": features})
 
 
-def _risk_summary(assessment):
-    """Compact latest-risk fields for the towers feed (markers + legend)."""
+def _annotated_risk_summary(site: WatchtowerSite) -> dict:
+    """Compact latest-risk fields read off an ``_annotated_towers`` instance.
+
+    Equivalent output to ``_risk_summary`` but sourced from the correlated
+    subquery annotations instead of a fresh per-tower query. ``latest_risk_date``
+    is None exactly when the tower has no assessment yet.
+    """
+    if site.latest_risk_date is None:
+        return {"risk_level": None, "risk_score": None, "risk_date": None}
+    return {
+        "risk_level": site.latest_risk_level,
+        "risk_score": site.latest_risk_score,
+        "risk_date": site.latest_risk_date.isoformat(),
+    }
+
+
+def _annotated_prediction_summary(site: WatchtowerSite) -> dict:
+    """Compact latest ML-prediction fields read off an ``_annotated_towers``
+    instance (null-safe). ``latest_ignition_probability`` is None exactly when
+    no prediction exists for the tower."""
+    if site.latest_ignition_probability is None:
+        return {
+            "ignition_probability": None,
+            "horizon_days": None,
+            "model_version": None,
+        }
+    return {
+        "ignition_probability": site.latest_ignition_probability,
+        "horizon_days": site.latest_ignition_horizon,
+        "model_version": site.latest_ignition_version,
+    }
+
+
+def _risk_summary(assessment: FireRiskAssessment | None) -> dict:
+    """Compact latest-risk fields for a single fetched assessment (or None)."""
     if assessment is None:
         return {"risk_level": None, "risk_score": None, "risk_date": None}
     return {
@@ -70,8 +219,8 @@ def _risk_summary(assessment):
     }
 
 
-def _prediction_summary(prediction):
-    """Compact latest ML-prediction fields for the towers feed (null-safe)."""
+def _prediction_summary(prediction: IgnitionPrediction | None) -> dict:
+    """Compact latest ML-prediction fields for a single prediction (null-safe)."""
     if prediction is None:
         return {
             "ignition_probability": None,
@@ -85,19 +234,25 @@ def _prediction_summary(prediction):
     }
 
 
-def fires_geojson(request):
+def fires_geojson(request: HttpRequest) -> JsonResponse:
     """Fire detections as GeoJSON, optionally filtered by date window + source.
 
     Query params (all optional): ``start``/``end`` (ISO dates, inclusive, matched
     on the detection's UTC calendar day) and ``source``. With no params it
     returns every detection (back-compat); the dashboard always passes a window
-    so the map isn't asked to draw the whole archive at once.
+    so the map isn't asked to draw the whole archive at once. Malformed dates are
+    ignored rather than rejected — a typo'd filter shouldn't 500 the map.
     """
     return _fire_collection(_filter_fires(FireDetection.objects.all(), request))
 
 
-def _parse_date(value):
-    """An ISO date string → ``date``; None for missing or malformed input."""
+def _parse_date(value: str | None) -> date | None:
+    """An ISO date string → ``date``; None for missing *or* malformed input.
+
+    Deliberately lenient: these are optional display filters, so a bad value is
+    silently dropped (the filter just isn't applied) rather than surfaced as a
+    400. See ``test_fires_geojson_ignores_malformed_date``.
+    """
     if not value:
         return None
     try:
@@ -106,7 +261,7 @@ def _parse_date(value):
         return None
 
 
-def _filter_fires(qs, request):
+def _filter_fires(qs: QuerySet[FireDetection], request: HttpRequest) -> QuerySet[FireDetection]:
     """Apply the shared ``start``/``end``/``source`` query filters to a fire qs."""
     start = _parse_date(request.GET.get("start"))
     end = _parse_date(request.GET.get("end"))
@@ -120,7 +275,7 @@ def _filter_fires(qs, request):
     return qs
 
 
-def fires_timeseries(request):
+def fires_timeseries(request: HttpRequest) -> JsonResponse:
     """Daily fire-detection counts over the whole dataset, broken down by source.
 
     One lightweight call powers the brush histogram, the fires-over-time chart,
@@ -150,25 +305,23 @@ def fires_timeseries(request):
     )
 
 
-def fires_stats(request):
+def fires_stats(request: HttpRequest) -> JsonResponse:
     """Window-scoped aggregates that need per-tower or raw-row data.
 
     Per-tower in-range counts (using each tower's *same* coverage definition as
     the map) plus an FRP-intensity histogram, all within the ``start``/``end``
     window. Kept separate from ``fires_timeseries`` because these can't be summed
-    from per-day rows.
+    from per-day rows. Counts come from ``_fire_count_map`` so this stays
+    query-bounded rather than running one spatial query per tower.
     """
     start = _parse_date(request.GET.get("start"))
     end = _parse_date(request.GET.get("end"))
 
-    per_tower = []
-    for tower in WatchtowerSite.objects.all():
-        fires = tower.fires_in_range()
-        if start:
-            fires = fires.filter(acquired_at__date__gte=start)
-        if end:
-            fires = fires.filter(acquired_at__date__lte=end)
-        per_tower.append({"id": tower.id, "name": tower.name, "count": fires.count()})
+    fire_counts = _fire_count_map(start, end)
+    per_tower = [
+        {"id": t["id"], "name": t["name"], "count": fire_counts.get(t["id"], 0)}
+        for t in WatchtowerSite.objects.values("id", "name")
+    ]
 
     window = _filter_fires(FireDetection.objects.all(), request).exclude(frp__isnull=True)
     frp_buckets = []
@@ -188,7 +341,7 @@ def fires_stats(request):
     return JsonResponse({"per_tower": per_tower, "frp_buckets": frp_buckets})
 
 
-def risk_timeseries(request):
+def risk_timeseries(request: HttpRequest) -> JsonResponse:
     """Per-day mean fire-risk score and mean ML ignition probability across towers.
 
     The dashboard-level aggregate behind the risk-trend card; the per-tower
@@ -217,13 +370,13 @@ def risk_timeseries(request):
     return JsonResponse({"series": series})
 
 
-def tower_fires_geojson(request, tower_id):
+def tower_fires_geojson(request: HttpRequest, tower_id: int) -> JsonResponse:
     """Fire detections within a single tower's coverage radius."""
     tower = get_object_or_404(WatchtowerSite, pk=tower_id)
     return _fire_collection(tower.fires_in_range())
 
 
-def tower_risk(request, tower_id):
+def tower_risk(request: HttpRequest, tower_id: int) -> JsonResponse:
     """A single tower's recent fire-risk series + contributing FWI factors.
 
     Powers the risk panel: latest-first assessments, each with the moisture
@@ -260,7 +413,7 @@ def tower_risk(request, tower_id):
     )
 
 
-def ingestion_status(request):
+def ingestion_status(request: HttpRequest) -> JsonResponse:
     """Per-stage checklist + ingest-cycle run, for the UI's status panel.
 
     Returns the latest ingest_cycle run (back-compat ``"run"`` key), a
@@ -304,7 +457,9 @@ _INGEST_STAGE_MAP = [
 ]
 
 
-def _build_stages(ingest_run, viewshed_run):
+def _build_stages(
+    ingest_run: IngestionRun | None, viewshed_run: IngestionRun | None
+) -> list[dict]:
     """Assemble the stages list from the latest ingest and viewshed runs."""
     steps = ingest_run.steps if ingest_run is not None else {}
 
@@ -340,7 +495,7 @@ def _build_stages(ingest_run, viewshed_run):
     return stages
 
 
-def _all_done(ingest_run, stages):
+def _all_done(ingest_run: IngestionRun | None, stages: list[dict]) -> bool:
     """True when the ingest cycle is complete and viewsheds are complete."""
     if ingest_run is None:
         return False
@@ -358,7 +513,8 @@ def _all_done(ingest_run, stages):
     return ingest_complete and viewshed_stage["status"] == "completed"
 
 
-def _fire_collection(fires):
+def _fire_collection(fires: QuerySet[FireDetection]) -> JsonResponse:
+    """Serialize a fire QuerySet to a GeoJSON FeatureCollection ([lon, lat])."""
     features = [
         {
             "type": "Feature",
