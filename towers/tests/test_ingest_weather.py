@@ -1,4 +1,5 @@
 """ingest_weather: fetch Open-Meteo, validate at the boundary, upsert per tower."""
+
 from unittest import mock
 
 import pytest
@@ -44,7 +45,9 @@ def tower(db):
 @pytest.mark.django_db
 def test_ingest_creates_then_is_idempotent(tower):
     response = _mock_json_response(_payload(38.0, -120.0))
-    with mock.patch("towers.management.commands.ingest_weather.requests.get", return_value=response):
+    with mock.patch(
+        "towers.management.commands.ingest_weather.requests.get", return_value=response
+    ):
         call_command("ingest_weather", "--day-range", "2")
         call_command("ingest_weather", "--day-range", "2")
 
@@ -82,7 +85,9 @@ def test_malformed_payload_writes_nothing(tower):
     broken = _payload(38.0, -120.0)
     broken["daily"]["temperature_2m_max"] = [None, None]  # null where number expected
     response = _mock_json_response(broken)
-    with mock.patch("towers.management.commands.ingest_weather.requests.get", return_value=response):
+    with mock.patch(
+        "towers.management.commands.ingest_weather.requests.get", return_value=response
+    ):
         # The only tower's payload is invalid → nothing written, and (as with
         # ingest_fires when every source fails) the command signals total failure.
         with pytest.raises(Exception):

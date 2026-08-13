@@ -3,6 +3,7 @@
 **Which active fires can each lookout tower currently see?**
 
 <!-- CI badge URL assumes repo path github.com/drewalth/watchtower — adjust if the repo name differs. -->
+
 [![CI](https://github.com/drewalth/watchtower/actions/workflows/ci.yml/badge.svg)](https://github.com/drewalth/watchtower/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](https://www.python.org/)
@@ -13,7 +14,7 @@ A GeoDjango + PostGIS web map of 27 real western-US fire lookout towers. Fire da
 
 ## Why I built this
 
-I wanted to explore GeoDjango and PostGIS seriously, inspired by products like [pano.ai](https://pano.ai) and [Watch Duty](https://www.watchduty.org) that are doing genuinely hard spatial work in wildfire detection. The central question — *which fires can a given tower see* — sounds simple until you try to answer it accurately.
+I wanted to explore GeoDjango and PostGIS seriously, inspired by products like [pano.ai](https://pano.ai) and [Watch Duty](https://www.watchduty.org) that are doing genuinely hard spatial work in wildfire detection. The central question — _which fires can a given tower see_ — sounds simple until you try to answer it accurately.
 
 The naive answer is a radius circle. The real answer requires terrain.
 
@@ -54,16 +55,16 @@ Geometry is stored exclusively in **SRID 4326 (WGS84)** — what the data source
 
 ## Stack
 
-| Layer        | Choice                                                              |
-|--------------|---------------------------------------------------------------------|
-| Backend      | Python 3.12, Django 5.x + GeoDjango (`django.contrib.gis`)         |
-| Database     | PostgreSQL 16 + PostGIS 3.4                                         |
-| Geo compute  | GDAL CLI (`gdal_viewshed`/`gdalwarp`), `rasterio`, `shapely`        |
-| Validation   | Pydantic (boundary validation of third-party payloads)              |
-| ETL          | `requests` + `pandas`                                               |
-| ML           | scikit-learn + joblib                                               |
-| Frontend     | React + TypeScript + Vite, MapLibre GL (mapcn), Tailwind            |
-| Tooling      | Docker Compose, [uv](https://docs.astral.sh/uv/) (Python), Node 24 |
+| Layer       | Choice                                                             |
+| ----------- | ------------------------------------------------------------------ |
+| Backend     | Python 3.12, Django 5.x + GeoDjango (`django.contrib.gis`)         |
+| Database    | PostgreSQL 16 + PostGIS 3.4                                        |
+| Geo compute | GDAL CLI (`gdal_viewshed`/`gdalwarp`), `rasterio`, `shapely`       |
+| Validation  | Pydantic (boundary validation of third-party payloads)             |
+| ETL         | `requests` + `pandas`                                              |
+| ML          | scikit-learn + joblib                                              |
+| Frontend    | React + TypeScript + Vite, MapLibre GL (mapcn), Tailwind           |
+| Tooling     | Docker Compose, [uv](https://docs.astral.sh/uv/) (Python), Node 24 |
 
 GeoDjango requires GDAL/GEOS/PROJ and `gdal_viewshed` shells out to the GDAL CLI, so **Django runs in Docker**. Node/Vite runs on the host — it's intentionally out of the image.
 
@@ -98,18 +99,18 @@ Both paths share `scripts/bootstrap.sh` (migrate → seed → optional demo admi
 
 ## Endpoints
 
-| Path                              | Returns                                                                              |
-|-----------------------------------|--------------------------------------------------------------------------------------|
-| `/`                               | React map: towers, coverage polygons, fire points, analytics dashboard               |
-| `/api/towers.geojson`             | Towers with coverage polygon + in-range fire count + latest FWI risk + ML probability|
-| `/api/fires.geojson`              | Fire detections; accepts `?start=&end=&source=` (no params → all)                   |
-| `/api/fires/timeseries.json`      | Daily detection counts by source + `min_date` / `max_date`                          |
-| `/api/fires/stats.json`           | Per-tower in-range counts + FRP intensity histogram; accepts `?start=&end=`         |
-| `/api/risk/timeseries.json`       | Per-day mean FWI risk + mean ML ignition probability                                |
-| `/api/ingestion/status.json`      | Whether an ETL cycle is in progress (drives the status pill)                        |
-| `/api/towers/<id>/fires.geojson`  | Fires within one tower's coverage                                                   |
-| `/api/towers/<id>/risk.json`      | Single-tower FWI risk detail                                                        |
-| `/admin/`                         | Django admin with map widgets                                                       |
+| Path                             | Returns                                                                               |
+| -------------------------------- | ------------------------------------------------------------------------------------- |
+| `/`                              | React map: towers, coverage polygons, fire points, analytics dashboard                |
+| `/api/towers.geojson`            | Towers with coverage polygon + in-range fire count + latest FWI risk + ML probability |
+| `/api/fires.geojson`             | Fire detections; accepts `?start=&end=&source=` (no params → all)                     |
+| `/api/fires/timeseries.json`     | Daily detection counts by source + `min_date` / `max_date`                            |
+| `/api/fires/stats.json`          | Per-tower in-range counts + FRP intensity histogram; accepts `?start=&end=`           |
+| `/api/risk/timeseries.json`      | Per-day mean FWI risk + mean ML ignition probability                                  |
+| `/api/ingestion/status.json`     | Whether an ETL cycle is in progress (drives the status pill)                          |
+| `/api/towers/<id>/fires.geojson` | Fires within one tower's coverage                                                     |
+| `/api/towers/<id>/risk.json`     | Single-tower FWI risk detail                                                          |
+| `/admin/`                        | Django admin with map widgets                                                         |
 
 ## Development
 

@@ -1,4 +1,5 @@
 """compute_fire_risk: walk weather per tower, carry codes forward, upsert risk."""
+
 from datetime import date, timedelta
 
 import pytest
@@ -20,13 +21,19 @@ def tower(db):
 
 def _weather(tower, day, **overrides):
     fields = dict(
-        temp_c=25.0, rh_pct=20.0, wind_kph=15.0,
-        precip_24h_mm=0.0, snow_depth_cm=0.0,
+        temp_c=25.0,
+        rh_pct=20.0,
+        wind_kph=15.0,
+        precip_24h_mm=0.0,
+        snow_depth_cm=0.0,
     )
     fields.update(overrides)
     return WeatherObservation.objects.create(
-        tower=tower, date=day, source="open-meteo",
-        external_uid=f"{tower.id}_{day.isoformat()}_open-meteo", **fields,
+        tower=tower,
+        date=day,
+        source="open-meteo",
+        external_uid=f"{tower.id}_{day.isoformat()}_open-meteo",
+        **fields,
     )
 
 
@@ -59,9 +66,7 @@ def test_codes_carry_forward_across_days(tower):
     for i in range(7):
         _weather(tower, run + timedelta(days=i))
     call_command("compute_fire_risk")
-    accumulated_dmc = (
-        FireRiskAssessment.objects.filter(tower=tower).order_by("-date").first().dmc
-    )
+    accumulated_dmc = FireRiskAssessment.objects.filter(tower=tower).order_by("-date").first().dmc
     assert accumulated_dmc > solo_dmc
 
 

@@ -1,4 +1,5 @@
 """Risk fields on the towers feed + the per-tower risk detail endpoint."""
+
 from datetime import date
 
 import pytest
@@ -24,7 +25,12 @@ def tower(db):
 
 def _assessment(tower, day, level, score, **overrides):
     fields = dict(
-        ffmc=88.0, dmc=20.0, dc=150.0, isi=8.0, bui=25.0, fwi=15.0,
+        ffmc=88.0,
+        dmc=20.0,
+        dc=150.0,
+        isi=8.0,
+        bui=25.0,
+        fwi=15.0,
         snow_covered=False,
     )
     fields.update(overrides)
@@ -93,8 +99,11 @@ def test_prediction_fields_are_null_safe_before_a_model_exists(client, tower):
 def test_latest_prediction_surfaces_in_both_endpoints(client, tower):
     _assessment(tower, date(2026, 6, 12), "high", 55.0)
     IgnitionPrediction.objects.create(
-        tower=tower, date=date(2026, 6, 12), probability=0.18,
-        horizon_days=3, model_version="hgb-20260612",
+        tower=tower,
+        date=date(2026, 6, 12),
+        probability=0.18,
+        horizon_days=3,
+        model_version="hgb-20260612",
     )
 
     props = client.get(reverse("towers-geojson")).json()["features"][0]["properties"]

@@ -10,6 +10,7 @@ The Pydantic boundary (``OpenMeteoResponse`` / ``to_weather_days``) lives in
 ``towers.schemas`` and is *not* repeated here — callers validate first, then
 hand the resulting list of ``WeatherDay`` objects to this module.
 """
+
 from towers.models import WatchtowerSite, WeatherObservation
 from towers.schemas import WeatherDay
 

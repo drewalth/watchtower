@@ -16,6 +16,7 @@ Re-running is safe and recomputes everything from the start of each tower's
 record (not incremental — correctness over the recursive chain matters more than
 skipping already-computed rows).
 """
+
 from django.core.management.base import BaseCommand, CommandError
 
 from towers.fire_weather import (
@@ -39,7 +40,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--tower", type=int, default=None,
+            "--tower",
+            type=int,
+            default=None,
             help="Only compute for this tower id (default: all towers).",
         )
 
@@ -49,9 +52,7 @@ class Command(BaseCommand):
             towers = towers.filter(pk=options["tower"])
         towers = list(towers)
         if not towers:
-            raise CommandError(
-                "No matching towers — run 'python manage.py seed_towers' first."
-            )
+            raise CommandError("No matching towers — run 'python manage.py seed_towers' first.")
 
         totals = {"created": 0, "updated": 0}
         for tower in towers:
@@ -59,14 +60,14 @@ class Command(BaseCommand):
             for field, value in counts.items():
                 totals[field] += value
             self.stdout.write(
-                f"  {tower.name}: created {counts['created']}, "
-                f"updated {counts['updated']}."
+                f"  {tower.name}: created {counts['created']}, updated {counts['updated']}."
             )
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Fire-risk computed — created {totals['created']}, "
-            f"updated {totals['updated']}."
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(
+                f"Fire-risk computed — created {totals['created']}, updated {totals['updated']}."
+            )
+        )
 
     def _compute_tower(self, tower):
         """Walk this tower's weather forward, carrying the recursive codes."""
@@ -80,9 +81,14 @@ class Command(BaseCommand):
                 # season restarts cleanly once the snow melts.
                 prev = apply_snow(prev, obs.snow_depth_cm)
                 fields = {
-                    "ffmc": prev.ffmc, "dmc": prev.dmc, "dc": prev.dc,
-                    "isi": 0.0, "bui": 0.0, "fwi": 0.0,
-                    "risk_score": 0.0, "risk_level": RiskLevel.LOW,
+                    "ffmc": prev.ffmc,
+                    "dmc": prev.dmc,
+                    "dc": prev.dc,
+                    "isi": 0.0,
+                    "bui": 0.0,
+                    "fwi": 0.0,
+                    "risk_score": 0.0,
+                    "risk_level": RiskLevel.LOW,
                     "snow_covered": True,
                 }
             else:
@@ -98,14 +104,21 @@ class Command(BaseCommand):
                 score, level = to_risk(result.fwi, tower.fuel_factor)
                 prev = result.codes
                 fields = {
-                    "ffmc": result.ffmc, "dmc": result.dmc, "dc": result.dc,
-                    "isi": result.isi, "bui": result.bui, "fwi": result.fwi,
-                    "risk_score": score, "risk_level": level,
+                    "ffmc": result.ffmc,
+                    "dmc": result.dmc,
+                    "dc": result.dc,
+                    "isi": result.isi,
+                    "bui": result.bui,
+                    "fwi": result.fwi,
+                    "risk_score": score,
+                    "risk_level": level,
                     "snow_covered": False,
                 }
 
             _, was_created = FireRiskAssessment.objects.update_or_create(
-                tower=tower, date=obs.date, defaults=fields,
+                tower=tower,
+                date=obs.date,
+                defaults=fields,
             )
             created += was_created
             updated += not was_created

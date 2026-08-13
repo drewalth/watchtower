@@ -6,6 +6,7 @@ one-hot encode ``fuel_type`` → classifier), optionally wrapped in
 Django so it round-trips and predicts in plain tests; the command layer feeds it
 the assembled feature dicts from ``dataset.py`` and handles I/O.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -43,9 +44,7 @@ def _frame(records: list[dict], columns: list[str]) -> pd.DataFrame:
 def _classifier(kind: str):
     """The base estimator for ``kind`` (imbalance handled via class weighting)."""
     if kind == "logreg":
-        return LogisticRegression(
-            class_weight="balanced", max_iter=1000, random_state=RANDOM_STATE
-        )
+        return LogisticRegression(class_weight="balanced", max_iter=1000, random_state=RANDOM_STATE)
     if kind == "hgb":
         # HistGradientBoosting has no class_weight. We don't reweight here; the
         # rare-event handling lives downstream (probability calibration + PR-AUC
@@ -68,16 +67,12 @@ def build_pipeline(
     transformers = [
         (
             "num",
-            Pipeline(
-                [("impute", SimpleImputer(strategy="median")), ("scale", StandardScaler())]
-            ),
+            Pipeline([("impute", SimpleImputer(strategy="median")), ("scale", StandardScaler())]),
             numeric,
         )
     ]
     if categorical:
-        transformers.append(
-            ("cat", OneHotEncoder(handle_unknown="ignore"), categorical)
-        )
+        transformers.append(("cat", OneHotEncoder(handle_unknown="ignore"), categorical))
     pre = ColumnTransformer(transformers, remainder="drop")
 
     estimator = _classifier(kind)
@@ -142,8 +137,6 @@ def build_baseline(records: list[dict], labels: list[int]) -> Pipeline:
     If the model can't out-predict ``fwi`` alone, the Phase 4 index already
     captured the signal — and that is a valid finding to report.
     """
-    pipeline = build_pipeline(
-        "logreg", numeric=[BASELINE_FEATURE], categorical=[], calibrate=False
-    )
+    pipeline = build_pipeline("logreg", numeric=[BASELINE_FEATURE], categorical=[], calibrate=False)
     pipeline.fit(_frame(records, [BASELINE_FEATURE]), labels)
     return pipeline

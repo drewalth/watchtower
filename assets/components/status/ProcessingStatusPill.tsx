@@ -29,7 +29,10 @@ function stageStatusToVisual(status: ProcessingStageStatus): StageVisualState {
 
 /** Select only the primitive values needed to decide visibility — avoids
  *  re-rendering when unrelated store slices change. */
-function selectVisible(s: { processingStages: { status: ProcessingStageStatus }[]; processingAllDone: boolean }) {
+function selectVisible(s: {
+  processingStages: { status: ProcessingStageStatus }[];
+  processingAllDone: boolean;
+}) {
   if (s.processingAllDone) return false;
   if (s.processingStages.length === 0) return false;
   return s.processingStages.some(
@@ -74,7 +77,9 @@ export function ProcessingStatusPill() {
               open ? "rounded-t-xl" : "rounded-xl",
             )}
             aria-expanded={open}
-            aria-label={open ? "Collapse processing status" : "Expand processing status"}
+            aria-label={
+              open ? "Collapse processing status" : "Expand processing status"
+            }
           >
             <Loader2 className="size-3.5 shrink-0 animate-spin text-amber-400" />
             <span className="flex-1 text-left text-xs font-medium leading-none">

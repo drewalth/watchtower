@@ -75,8 +75,7 @@ export function useProcessingStatus(): void {
         for (const stage of stages) {
           const prevStage = prev.get(stage.key);
           const justCompleted =
-            stage.status === "completed" &&
-            prevStage?.status !== "completed";
+            stage.status === "completed" && prevStage?.status !== "completed";
 
           if (!justCompleted) continue;
 

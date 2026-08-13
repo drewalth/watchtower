@@ -3,6 +3,7 @@
 GEOS geometries only require ``django.contrib.gis.geos`` (libgeos), not a
 database connection, so these tests run without ``@pytest.mark.django_db``.
 """
+
 from django.contrib.gis.geos import Point
 
 from towers.clustering import (
@@ -72,9 +73,11 @@ def test_cluster_order_deterministic():
 
 def test_cluster_extents_groups_by_index():
     # Two near extents (0, 2) and one far (1) → groups ordered by lowest index.
-    extents = [(-120.5, 37.8, -119.5, 38.2),
-               (-106.5, 38.8, -105.5, 39.2),
-               (-120.4, 37.9, -119.4, 38.3)]
+    extents = [
+        (-120.5, 37.8, -119.5, 38.2),
+        (-106.5, 38.8, -105.5, 39.2),
+        (-120.4, 37.9, -119.4, 38.3),
+    ]
     groups = cluster_extents(extents)
     assert groups == [[0, 2], [1]]
 

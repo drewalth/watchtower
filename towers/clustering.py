@@ -104,8 +104,5 @@ def cluster_bboxes(
     extents = [geom.envelope.extent for geom in coverage_areas]
     clusters = cluster_extents(extents, link_degrees)
     bboxes = [_merge_extents([extents[i] for i in members]) for members in clusters]
-    oversized = [
-        b for b in bboxes
-        if max(b[2] - b[0], b[3] - b[1]) > max_span
-    ]
+    oversized = [b for b in bboxes if max(b[2] - b[0], b[3] - b[1]) > max_span]
     return bboxes, oversized

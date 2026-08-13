@@ -1,4 +1,5 @@
 """Pure feature/label assembly for the ignition model (no DB / no network)."""
+
 from datetime import date, timedelta
 
 from towers.ml.dataset import (
@@ -16,9 +17,19 @@ CONTEXT = StaticContext(fuel_type="conifer", elevation_m=1500.0, latitude=39.0)
 def _day(d: date, *, temp=20.0, precip=0.0, fwi=10.0) -> TowerDay:
     """A TowerDay with sensible defaults; override the fields a test cares about."""
     return TowerDay(
-        date=d, temp_c=temp, rh_pct=30.0, wind_kph=15.0, precip_24h_mm=precip,
-        snow_depth_cm=0.0, ffmc=88.0, dmc=20.0, dc=150.0, isi=8.0, bui=25.0,
-        fwi=fwi, risk_score=40.0,
+        date=d,
+        temp_c=temp,
+        rh_pct=30.0,
+        wind_kph=15.0,
+        precip_24h_mm=precip,
+        snow_depth_cm=0.0,
+        ffmc=88.0,
+        dmc=20.0,
+        dc=150.0,
+        isi=8.0,
+        bui=25.0,
+        fwi=fwi,
+        risk_score=40.0,
     )
 
 
@@ -28,6 +39,7 @@ def _run(start: date, n: int, **per_day):
 
 
 # --- labeling -------------------------------------------------------------
+
 
 def test_label_one_when_fire_inside_horizon():
     t = date(2025, 7, 1)
@@ -60,6 +72,7 @@ def test_assemble_labels_track_the_fire_calendar():
 
 # --- rolling features -----------------------------------------------------
 
+
 def test_rolling_aggregates_use_trailing_window():
     # Seven days of known temps/precip; check the last day's aggregates.
     days = [
@@ -79,6 +92,7 @@ def test_days_since_rain_counts_back_to_last_wetting_rain():
 
 
 # --- leakage guard --------------------------------------------------------
+
 
 def test_features_do_not_depend_on_future_days_or_labels():
     """Features at day t are identical no matter what happens after t."""

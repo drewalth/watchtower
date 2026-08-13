@@ -9,6 +9,7 @@ Reuses the Phase 4 boundary: the archive response has the same ``daily`` shape a
 the forecast endpoint, so OpenMeteoResponse validates it unchanged. Per-tower
 isolation + idempotent upsert mirror ingest_weather.
 """
+
 from datetime import date
 
 import requests
@@ -32,15 +33,21 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--start", type=date.fromisoformat, required=True,
+            "--start",
+            type=date.fromisoformat,
+            required=True,
             help="First day to backfill, inclusive (YYYY-MM-DD).",
         )
         parser.add_argument(
-            "--end", type=date.fromisoformat, required=True,
+            "--end",
+            type=date.fromisoformat,
+            required=True,
             help="Last day to backfill, inclusive (YYYY-MM-DD).",
         )
         parser.add_argument(
-            "--tower", type=int, default=None,
+            "--tower",
+            type=int,
+            default=None,
             help="Only backfill for this tower id (default: all towers).",
         )
 
@@ -54,9 +61,7 @@ class Command(BaseCommand):
             towers = towers.filter(pk=options["tower"])
         towers = list(towers)
         if not towers:
-            raise CommandError(
-                "No matching towers — run 'python manage.py seed_towers' first."
-            )
+            raise CommandError("No matching towers — run 'python manage.py seed_towers' first.")
 
         totals = {"created": 0, "updated": 0}
         failures = []
@@ -65,23 +70,18 @@ class Command(BaseCommand):
                 counts = self._backfill_tower(tower, start, end)
             except (CommandError, requests.RequestException, ValidationError) as exc:
                 # Isolate per-tower failures so one bad response keeps the rest.
-                self.stderr.write(
-                    self.style.WARNING(f"  {tower.name}: skipped — {exc}")
-                )
+                self.stderr.write(self.style.WARNING(f"  {tower.name}: skipped — {exc}"))
                 failures.append(tower.name)
                 continue
             for field, value in counts.items():
                 totals[field] += value
             self.stdout.write(
-                f"  {tower.name}: created {counts['created']}, "
-                f"updated {counts['updated']}."
+                f"  {tower.name}: created {counts['created']}, updated {counts['updated']}."
             )
 
         succeeded = len(towers) - len(failures)
         if succeeded == 0:
-            raise CommandError(
-                f"All {len(towers)} tower(s) failed: {', '.join(failures)}."
-            )
+            raise CommandError(f"All {len(towers)} tower(s) failed: {', '.join(failures)}.")
 
         summary = (
             f"Weather backfill complete ({start}..{end}) — "

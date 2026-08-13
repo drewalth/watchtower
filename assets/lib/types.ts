@@ -141,10 +141,19 @@ export interface IngestionRun {
 }
 
 /** Per-stage status from the ingestion pipeline. */
-export type ProcessingStageStatus = "pending" | "running" | "completed" | "failed";
+export type ProcessingStageStatus =
+  | "pending"
+  | "running"
+  | "completed"
+  | "failed";
 
 /** Keys matching the stage `key` values returned by the API. */
-export type ProcessingStageKey = "fires" | "weather" | "risk" | "predictions" | "viewsheds";
+export type ProcessingStageKey =
+  | "fires"
+  | "weather"
+  | "risk"
+  | "predictions"
+  | "viewsheds";
 
 /** One stage of the ingestion pipeline. Only the `viewsheds` stage carries
  *  `done`/`total`. */

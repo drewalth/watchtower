@@ -9,6 +9,7 @@ The JSON aggregate endpoints (``fires/timeseries``, ``fires/stats``,
 in progress, driving the status pill. All serialization is done by hand in
 ``views.py``; coordinates are always ``[lon, lat]`` (GeoJSON / XY convention).
 """
+
 from django.urls import path
 
 from . import views

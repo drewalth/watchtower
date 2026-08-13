@@ -21,11 +21,15 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--day-range", type=int, default=7,
+            "--day-range",
+            type=int,
+            default=7,
             help="How many past days to fetch (1-92), plus today. Default 7.",
         )
         parser.add_argument(
-            "--tower", type=int, default=None,
+            "--tower",
+            type=int,
+            default=None,
             help="Only ingest for this tower id (default: all towers).",
         )
 
@@ -39,9 +43,7 @@ class Command(BaseCommand):
             towers = towers.filter(pk=options["tower"])
         towers = list(towers)
         if not towers:
-            raise CommandError(
-                "No matching towers — run 'python manage.py seed_towers' first."
-            )
+            raise CommandError("No matching towers — run 'python manage.py seed_towers' first.")
 
         totals = {"created": 0, "updated": 0}
         failures = []
@@ -51,23 +53,18 @@ class Command(BaseCommand):
             except (CommandError, requests.RequestException, ValidationError) as exc:
                 # Isolate per-tower failures: a network hiccup or a payload that
                 # no longer matches our world view must not lose the other towers.
-                self.stderr.write(
-                    self.style.WARNING(f"  {tower.name}: skipped — {exc}")
-                )
+                self.stderr.write(self.style.WARNING(f"  {tower.name}: skipped — {exc}"))
                 failures.append(tower.name)
                 continue
             for field, value in counts.items():
                 totals[field] += value
             self.stdout.write(
-                f"  {tower.name}: created {counts['created']}, "
-                f"updated {counts['updated']}."
+                f"  {tower.name}: created {counts['created']}, updated {counts['updated']}."
             )
 
         succeeded = len(towers) - len(failures)
         if succeeded == 0:
-            raise CommandError(
-                f"All {len(towers)} tower(s) failed: {', '.join(failures)}."
-            )
+            raise CommandError(f"All {len(towers)} tower(s) failed: {', '.join(failures)}.")
 
         summary = (
             f"Weather ingest complete — {succeeded}/{len(towers)} tower(s): "

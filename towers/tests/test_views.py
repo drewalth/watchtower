@@ -79,7 +79,7 @@ def test_tower_fires_geojson_filters_to_range(client):
         elevation_m=1000,
         coverage_radius_km=20.0,
     )
-    _fire("inside", -120.0, 38.1)   # ~11 km
+    _fire("inside", -120.0, 38.1)  # ~11 km
     _fire("outside", -120.0, 38.3)  # ~33 km
 
     url = reverse("tower-fires-geojson", args=[tower.id])
@@ -107,6 +107,7 @@ def test_towers_geojson_has_no_n_plus_one(client):
     The old implementation issued ~3 queries per tower (in-range count, latest
     risk, latest prediction); the annotated + aggregate rewrite must stay flat.
     """
+
     def queries_for(n):
         _make_radius_towers(n)
         with CaptureQueriesContext(connection) as ctx:
@@ -119,6 +120,7 @@ def test_towers_geojson_has_no_n_plus_one(client):
 @pytest.mark.django_db
 def test_fires_stats_has_no_n_plus_one(client):
     """Per-tower stats must not issue one spatial query per tower either."""
+
     def queries_for(n):
         _make_radius_towers(n)
         with CaptureQueriesContext(connection) as ctx:
@@ -139,16 +141,37 @@ def test_towers_geojson_carries_latest_risk_and_prediction(client):
         coverage_radius_km=20.0,
     )
     FireRiskAssessment.objects.create(
-        tower=tower, date=date(2024, 7, 1), risk_level="high", risk_score=72.0,
-        ffmc=90.0, dmc=30.0, dc=200.0, isi=10.0, bui=40.0, fwi=25.0, snow_covered=False,
+        tower=tower,
+        date=date(2024, 7, 1),
+        risk_level="high",
+        risk_score=72.0,
+        ffmc=90.0,
+        dmc=30.0,
+        dc=200.0,
+        isi=10.0,
+        bui=40.0,
+        fwi=25.0,
+        snow_covered=False,
     )
     FireRiskAssessment.objects.create(  # newer → this one should win
-        tower=tower, date=date(2024, 7, 2), risk_level="extreme", risk_score=88.0,
-        ffmc=92.0, dmc=35.0, dc=220.0, isi=12.0, bui=45.0, fwi=30.0, snow_covered=False,
+        tower=tower,
+        date=date(2024, 7, 2),
+        risk_level="extreme",
+        risk_score=88.0,
+        ffmc=92.0,
+        dmc=35.0,
+        dc=220.0,
+        isi=12.0,
+        bui=45.0,
+        fwi=30.0,
+        snow_covered=False,
     )
     IgnitionPrediction.objects.create(
-        tower=tower, date=date(2024, 7, 2), probability=0.42,
-        horizon_days=3, model_version="v1",
+        tower=tower,
+        date=date(2024, 7, 2),
+        probability=0.42,
+        horizon_days=3,
+        model_version="v1",
     )
 
     props = client.get(reverse("towers-geojson")).json()["features"][0]["properties"]
@@ -164,8 +187,10 @@ def test_towers_geojson_carries_latest_risk_and_prediction(client):
 def test_towers_geojson_null_risk_and_prediction_are_null(client):
     """A tower with no assessment/prediction yet serializes explicit nulls."""
     WatchtowerSite.objects.create(
-        name="Bare", location=Point(-120.0, 38.0, srid=4326),
-        elevation_m=1000, coverage_radius_km=20.0,
+        name="Bare",
+        location=Point(-120.0, 38.0, srid=4326),
+        elevation_m=1000,
+        coverage_radius_km=20.0,
     )
     props = client.get(reverse("towers-geojson")).json()["features"][0]["properties"]
     assert props["risk_level"] is None

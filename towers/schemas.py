@@ -6,6 +6,7 @@ or a mismatched array raises a precise ``ValidationError`` instead of silently
 persisting garbage. The validated DTOs are the single source of truth for what a
 "good" weather day / fire row looks like downstream.
 """
+
 import math
 from datetime import date
 

@@ -1,4 +1,5 @@
 """Time-window filtering on the fires feed + the dashboard aggregate endpoints."""
+
 from datetime import date, datetime, timezone
 
 import pytest
@@ -30,8 +31,17 @@ def _fire(uid, lon, lat, *, when, source="VIIRS_NOAA20_NRT", frp=None):
 
 def _assessment(tower, day, score):
     return FireRiskAssessment.objects.create(
-        tower=tower, date=day, risk_level="moderate", risk_score=score,
-        ffmc=88.0, dmc=20.0, dc=150.0, isi=8.0, bui=25.0, fwi=15.0, snow_covered=False,
+        tower=tower,
+        date=day,
+        risk_level="moderate",
+        risk_score=score,
+        ffmc=88.0,
+        dmc=20.0,
+        dc=150.0,
+        isi=8.0,
+        bui=25.0,
+        fwi=15.0,
+        snow_covered=False,
     )
 
 
@@ -46,6 +56,7 @@ def tower(db):
 
 
 # --- fires_geojson filtering -------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_fires_geojson_filters_by_date_window(client):
@@ -86,6 +97,7 @@ def test_fires_geojson_ignores_malformed_date(client):
 
 # --- fires_timeseries --------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_fires_timeseries_counts_per_day_and_source(client):
     _fire("a", -120.0, 38.1, when=_dt(2024, 6, 1), source="VIIRS_NOAA20_NRT")
@@ -105,16 +117,19 @@ def test_fires_timeseries_counts_per_day_and_source(client):
 @pytest.mark.django_db
 def test_fires_timeseries_empty(client):
     assert client.get(reverse("fires-timeseries")).json() == {
-        "series": [], "min_date": None, "max_date": None,
+        "series": [],
+        "min_date": None,
+        "max_date": None,
     }
 
 
 # --- fires_stats -------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_fires_stats_per_tower_uses_coverage(client, tower):
-    _fire("inside", -120.0, 38.05, when=_dt(2024, 7, 10))   # ~5.5 km, in range
-    _fire("outside", -120.0, 38.5, when=_dt(2024, 7, 10))   # ~55 km, out of range
+    _fire("inside", -120.0, 38.05, when=_dt(2024, 7, 10))  # ~5.5 km, in range
+    _fire("outside", -120.0, 38.5, when=_dt(2024, 7, 10))  # ~55 km, out of range
 
     data = client.get(reverse("fires-stats")).json()
     row = next(r for r in data["per_tower"] if r["id"] == tower.id)
@@ -127,9 +142,7 @@ def test_fires_stats_respects_window(client, tower):
     _fire("aug", -120.0, 38.05, when=_dt(2024, 8, 10))
 
     url = reverse("fires-stats") + "?start=2024-07-01&end=2024-07-31"
-    row = next(
-        r for r in client.get(url).json()["per_tower"] if r["id"] == tower.id
-    )
+    row = next(r for r in client.get(url).json()["per_tower"] if r["id"] == tower.id)
     assert row["count"] == 1
 
 
@@ -141,8 +154,7 @@ def test_fires_stats_frp_buckets_skip_nulls(client, tower):
     _fire("none", -120.0, 38.05, when=_dt(2024, 7, 10), frp=None)
 
     by_label = {
-        b["label"]: b["count"]
-        for b in client.get(reverse("fires-stats")).json()["frp_buckets"]
+        b["label"]: b["count"] for b in client.get(reverse("fires-stats")).json()["frp_buckets"]
     }
     assert by_label["0–10"] == 1
     assert by_label["10–50"] == 1
@@ -152,6 +164,7 @@ def test_fires_stats_frp_buckets_skip_nulls(client, tower):
 
 
 # --- risk_timeseries ---------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_risk_timeseries_averages_across_towers(client):
@@ -165,8 +178,11 @@ def test_risk_timeseries_averages_across_towers(client):
     _assessment(b, date(2024, 7, 1), 40.0)
     for tower, prob in ((a, 0.1), (b, 0.3)):
         IgnitionPrediction.objects.create(
-            tower=tower, date=date(2024, 7, 1), probability=prob,
-            horizon_days=3, model_version="v",
+            tower=tower,
+            date=date(2024, 7, 1),
+            probability=prob,
+            horizon_days=3,
+            model_version="v",
         )
 
     day = client.get(reverse("risk-timeseries")).json()["series"][0]
@@ -178,6 +194,4 @@ def test_risk_timeseries_averages_across_towers(client):
 @pytest.mark.django_db
 def test_risk_timeseries_null_ignition_without_predictions(client, tower):
     _assessment(tower, date(2024, 7, 1), 25.0)
-    assert client.get(reverse("risk-timeseries")).json()["series"][0][
-        "mean_ignition"
-    ] is None
+    assert client.get(reverse("risk-timeseries")).json()["series"][0]["mean_ignition"] is None

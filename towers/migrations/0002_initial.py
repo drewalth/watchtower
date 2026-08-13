@@ -5,23 +5,33 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     initial = True
 
     dependencies = [
-        ('towers', '0001_enable_postgis'),
+        ("towers", "0001_enable_postgis"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='WatchtowerSite',
+            name="WatchtowerSite",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=200)),
-                ('location', django.contrib.gis.db.models.fields.PointField(srid=4326)),
-                ('elevation_m', models.FloatField(help_text='Metres above sea level.')),
-                ('coverage_radius_km', models.FloatField(default=20.0, help_text='Naive line-of-sight radius; used for coverage in Phase 2.')),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("name", models.CharField(max_length=200)),
+                ("location", django.contrib.gis.db.models.fields.PointField(srid=4326)),
+                ("elevation_m", models.FloatField(help_text="Metres above sea level.")),
+                (
+                    "coverage_radius_km",
+                    models.FloatField(
+                        default=20.0,
+                        help_text="Naive line-of-sight radius; used for coverage in Phase 2.",
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
         ),
     ]

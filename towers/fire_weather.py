@@ -15,6 +15,7 @@ The chain, from raw noon weather to the final index:
 FFMC/DMC/DC are recursive: each day starts from the previous day's value, so the
 caller persists them and feeds them back in (see ``compute_fire_risk``).
 """
+
 from __future__ import annotations
 
 import math
@@ -97,9 +98,9 @@ def calc_ffmc(ffmc_prev: float, temp: float, rh: float, wind: float, rain: float
             + 0.18 * (21.1 - temp) * (1.0 - math.exp(-0.115 * rh))
         )
         if mo < ew:
-            kl = 0.424 * (1.0 - ((100.0 - rh) / 100.0) ** 1.7) + 0.0694 * math.sqrt(
-                wind
-            ) * (1.0 - ((100.0 - rh) / 100.0) ** 8)
+            kl = 0.424 * (1.0 - ((100.0 - rh) / 100.0) ** 1.7) + 0.0694 * math.sqrt(wind) * (
+                1.0 - ((100.0 - rh) / 100.0) ** 8
+            )
             kw = kl * 0.581 * math.exp(0.0365 * temp)
             m = ew - (ew - mo) * 10.0**-kw
         else:
@@ -161,9 +162,7 @@ def calc_bui(dmc: float, dc: float) -> float:
     if dmc <= 0.4 * dc:
         bui = 0.8 * dmc * dc / (dmc + 0.4 * dc)
     else:
-        bui = dmc - (1.0 - 0.8 * dc / (dmc + 0.4 * dc)) * (
-            0.92 + (0.0114 * dmc) ** 1.7
-        )
+        bui = dmc - (1.0 - 0.8 * dc / (dmc + 0.4 * dc)) * (0.92 + (0.0114 * dmc) ** 1.7)
     return max(bui, 0.0)
 
 
@@ -183,7 +182,9 @@ def calc_fwi(isi: float, bui: float) -> float:
 def daily_fwi(prev: FwiCodes, weather: WeatherDay) -> FwiResult:
     """Advance the FWI system one day from ``prev`` codes given a ``WeatherDay``."""
     month = weather.date.month
-    ffmc = calc_ffmc(prev.ffmc, weather.temp_c, weather.rh_pct, weather.wind_kph, weather.precip_24h_mm)
+    ffmc = calc_ffmc(
+        prev.ffmc, weather.temp_c, weather.rh_pct, weather.wind_kph, weather.precip_24h_mm
+    )
     dmc = calc_dmc(prev.dmc, weather.temp_c, weather.rh_pct, weather.precip_24h_mm, month)
     dc = calc_dc(prev.dc, weather.temp_c, weather.precip_24h_mm, month)
     isi = calc_isi(ffmc, weather.wind_kph)

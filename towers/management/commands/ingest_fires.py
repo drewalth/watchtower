@@ -18,6 +18,7 @@ drops a whole sensor's data.
 it. Any exception text from ``requests`` that might contain the URL is redacted
 before surfacing.
 """
+
 import io
 from datetime import date, datetime, timedelta, timezone
 
@@ -34,10 +35,7 @@ from towers.schemas import FirmsRow
 
 # FIRMS "area" endpoint: CSV detections within a bbox. The day-range suffix is
 # "last N days"; appending a start date instead returns N days *from* that date.
-FIRMS_URL = (
-    "https://firms.modaps.eosdis.nasa.gov/api/area/csv/"
-    "{key}/{source}/{bbox}/{day_range}"
-)
+FIRMS_URL = "https://firms.modaps.eosdis.nasa.gov/api/area/csv/{key}/{source}/{bbox}/{day_range}"
 
 # VIIRS near-real-time sensors pulled by default. Each is a separate FIRMS
 # request; widening coverage is as simple as adding a sensor to this list.
@@ -69,21 +67,29 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--day-range", type=int, default=1,
+            "--day-range",
+            type=int,
+            default=1,
             help="How many days back to fetch (1-10). Default 1. Ignored in "
-                 "backfill mode (--start/--end).",
+            "backfill mode (--start/--end).",
         )
         parser.add_argument(
-            "--start", type=date.fromisoformat, default=None,
+            "--start",
+            type=date.fromisoformat,
+            default=None,
             help="Backfill start date, inclusive (YYYY-MM-DD). Requires --end; "
-                 "switches to the archive sources and chunks the range.",
+            "switches to the archive sources and chunks the range.",
         )
         parser.add_argument(
-            "--end", type=date.fromisoformat, default=None,
+            "--end",
+            type=date.fromisoformat,
+            default=None,
             help="Backfill end date, inclusive (YYYY-MM-DD). Requires --start.",
         )
         parser.add_argument(
-            "--source", nargs="+", default=None,
+            "--source",
+            nargs="+",
+            default=None,
             help=(
                 "FIRMS source/sensor(s) to pull, space-separated. Defaults to "
                 f"the NRT sensors ({', '.join(DEFAULT_SOURCES)}); in backfill "
@@ -126,10 +132,12 @@ class Command(BaseCommand):
             )
         bboxes, oversized = result
         for bbox in oversized:
-            self.stderr.write(self.style.WARNING(
-                f"  cluster bbox {bbox} exceeds the FIRMS size budget; it may "
-                "400 — consider tightening CLUSTER_LINK_DEGREES."
-            ))
+            self.stderr.write(
+                self.style.WARNING(
+                    f"  cluster bbox {bbox} exceeds the FIRMS size budget; it may "
+                    "400 — consider tightening CLUSTER_LINK_DEGREES."
+                )
+            )
 
         totals = {"fetched": 0, "created": 0, "updated": 0, "skipped": 0}
         failures = []
@@ -150,9 +158,9 @@ class Command(BaseCommand):
                     # for one region must not lose the others. Redact the key,
                     # which requests embeds in its exception text.
                     message = str(exc).replace(key, "***")
-                    self.stderr.write(self.style.WARNING(
-                        f"  {source} bbox {bbox}: skipped — {message}"
-                    ))
+                    self.stderr.write(
+                        self.style.WARNING(f"  {source} bbox {bbox}: skipped — {message}")
+                    )
                     cluster_failures += 1
                     continue
                 for field, value in counts.items():
@@ -170,10 +178,7 @@ class Command(BaseCommand):
 
         succeeded = len(sources) - len(failures)
         if succeeded == 0:
-            raise CommandError(
-                f"All {len(sources)} FIRMS source(s) failed: "
-                f"{', '.join(failures)}."
-            )
+            raise CommandError(f"All {len(sources)} FIRMS source(s) failed: {', '.join(failures)}.")
 
         summary = (
             f"FIRMS ingest complete — {succeeded}/{len(sources)} source(s): "
@@ -205,9 +210,9 @@ class Command(BaseCommand):
                 counts = self._fetch_and_upsert(key, source, bbox, span, cursor)
             except (CommandError, requests.RequestException) as exc:
                 message = str(exc).replace(key, "***")
-                self.stderr.write(self.style.WARNING(
-                    f"    {source} {cursor}..+{span}d: skipped — {message}"
-                ))
+                self.stderr.write(
+                    self.style.WARNING(f"    {source} {cursor}..+{span}d: skipped — {message}")
+                )
                 window_failures += 1
             else:
                 for field, value in counts.items():
@@ -215,9 +220,7 @@ class Command(BaseCommand):
             cursor += timedelta(days=span)
 
         if window_failures == windows:
-            raise CommandError(
-                f"all {windows} window(s) failed for {source}"
-            )
+            raise CommandError(f"all {windows} window(s) failed for {source}")
         return totals
 
     def _fetch_and_upsert(self, key, source, bbox, day_range, start_date):
@@ -264,9 +267,7 @@ class Command(BaseCommand):
         if "latitude" not in first_line:
             # FIRMS returns a plain-text message (bad key, throttled, etc.)
             # rather than CSV when something is wrong.
-            raise CommandError(
-                f"unexpected FIRMS response (not CSV): {text.strip()[:200]!r}"
-            )
+            raise CommandError(f"unexpected FIRMS response (not CSV): {text.strip()[:200]!r}")
 
         df = pd.read_csv(io.StringIO(text))
         fetched = len(df)
@@ -317,9 +318,9 @@ class Command(BaseCommand):
         # raises ValidationError and is skipped by the caller.
         parsed = FirmsRow.model_validate(row._asdict())
         acq_time = parsed.acq_time_hhmm  # HHMM, sometimes unpadded (118 -> 0118).
-        acquired_at = datetime.strptime(
-            f"{parsed.acq_date} {acq_time}", "%Y-%m-%d %H%M"
-        ).replace(tzinfo=timezone.utc)
+        acquired_at = datetime.strptime(f"{parsed.acq_date} {acq_time}", "%Y-%m-%d %H%M").replace(
+            tzinfo=timezone.utc
+        )
 
         return {
             "external_uid": (

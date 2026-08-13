@@ -27,7 +27,15 @@ class FireDetectionAdmin(GISModelAdmin):
 
 @admin.register(WeatherObservation)
 class WeatherObservationAdmin(admin.ModelAdmin):
-    list_display = ("tower", "date", "temp_c", "rh_pct", "wind_kph", "precip_24h_mm", "snow_depth_cm")
+    list_display = (
+        "tower",
+        "date",
+        "temp_c",
+        "rh_pct",
+        "wind_kph",
+        "precip_24h_mm",
+        "snow_depth_cm",
+    )
     list_filter = ("tower", "source")
     date_hierarchy = "date"
 

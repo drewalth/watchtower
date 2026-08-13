@@ -11,6 +11,7 @@ computed only from days ``<= t`` (the structural leakage guard: ``assemble``
 passes each day a *history* slice ending at that day, so a feature physically
 cannot read the future window that defines its label).
 """
+
 import math
 from dataclasses import dataclass, field
 from datetime import date, timedelta

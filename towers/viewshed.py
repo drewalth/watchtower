@@ -9,6 +9,7 @@ the numbered steps below mark each stage.
 Requires the GDAL CLI (gdalbuildvrt/gdalwarp/gdal_viewshed) plus rasterio and
 shapely — all present in the Docker image.
 """
+
 import math
 import subprocess
 import tempfile
@@ -30,10 +31,7 @@ def _tile_name(lat_sw: int, lon_sw: int) -> str:
     """Copernicus COG tile name for the 1° tile with this SW corner."""
     ns = "N" if lat_sw >= 0 else "S"
     ew = "E" if lon_sw >= 0 else "W"
-    return (
-        f"Copernicus_DSM_COG_10_{ns}{abs(lat_sw):02d}_00_"
-        f"{ew}{abs(lon_sw):03d}_00_DEM"
-    )
+    return f"Copernicus_DSM_COG_10_{ns}{abs(lat_sw):02d}_00_{ew}{abs(lon_sw):03d}_00_DEM"
 
 
 def _tile_url(lat_sw: int, lon_sw: int) -> str:
@@ -60,9 +58,7 @@ def _run(cmd: list[str]) -> subprocess.CompletedProcess:
     """Run a GDAL CLI command, raising with stderr on failure."""
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
-        raise RuntimeError(
-            f"command failed ({' '.join(cmd[:1])}): {result.stderr.strip()[:500]}"
-        )
+        raise RuntimeError(f"command failed ({' '.join(cmd[:1])}): {result.stderr.strip()[:500]}")
     return result
 
 
@@ -95,28 +91,49 @@ def compute_viewshed(tower, mast_height_m: float = 10.0) -> Optional[MultiPolygo
 
         # 1+2. Mosaic the relevant DEM tiles, then warp/clip to UTM metres.
         _run(["gdalbuildvrt", str(vrt), *_tiles_for_bbox(west, south, east, north)])
-        _run([
-            "gdalwarp",
-            "-t_srs", f"EPSG:{utm}",
-            "-te", str(west), str(south), str(east), str(north),
-            "-te_srs", "EPSG:4326",
-            "-tr", str(_DEM_RES_M), str(_DEM_RES_M),
-            "-r", "bilinear",
-            "-of", "GTiff",
-            "-overwrite",
-            str(vrt), str(dem_utm),
-        ])
+        _run(
+            [
+                "gdalwarp",
+                "-t_srs",
+                f"EPSG:{utm}",
+                "-te",
+                str(west),
+                str(south),
+                str(east),
+                str(north),
+                "-te_srs",
+                "EPSG:4326",
+                "-tr",
+                str(_DEM_RES_M),
+                str(_DEM_RES_M),
+                "-r",
+                "bilinear",
+                "-of",
+                "GTiff",
+                "-overwrite",
+                str(vrt),
+                str(dem_utm),
+            ]
+        )
 
         # 3. Viewshed from the observer, capped at the coverage radius.
-        _run([
-            "gdal_viewshed",
-            "-ox", str(observer.x),
-            "-oy", str(observer.y),
-            "-oz", str(mast_height_m),
-            "-md", str(radius_m),
-            "-of", "GTiff",
-            str(dem_utm), str(visible),
-        ])
+        _run(
+            [
+                "gdal_viewshed",
+                "-ox",
+                str(observer.x),
+                "-oy",
+                str(observer.y),
+                "-oz",
+                str(mast_height_m),
+                "-md",
+                str(radius_m),
+                "-of",
+                "GTiff",
+                str(dem_utm),
+                str(visible),
+            ]
+        )
 
         # 4. Polygonize the visible cells (value 255) and union them.
         with rasterio.open(visible) as src:

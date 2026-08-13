@@ -4,23 +4,45 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0007_alter_firedetection_acquired_at'),
+        ("towers", "0007_alter_firedetection_acquired_at"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='IngestionRun',
+            name="IngestionRun",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('started_at', models.DateTimeField(auto_now_add=True)),
-                ('finished_at', models.DateTimeField(blank=True, null=True)),
-                ('status', models.CharField(choices=[('running', 'Running'), ('completed', 'Completed'), ('failed', 'Failed')], default='running', max_length=16)),
-                ('detail', models.TextField(blank=True, default='', help_text='Per-step ok/failed summary for debugging.')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("started_at", models.DateTimeField(auto_now_add=True)),
+                ("finished_at", models.DateTimeField(blank=True, null=True)),
+                (
+                    "status",
+                    models.CharField(
+                        choices=[
+                            ("running", "Running"),
+                            ("completed", "Completed"),
+                            ("failed", "Failed"),
+                        ],
+                        default="running",
+                        max_length=16,
+                    ),
+                ),
+                (
+                    "detail",
+                    models.TextField(
+                        blank=True,
+                        default="",
+                        help_text="Per-step ok/failed summary for debugging.",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-started_at'],
+                "ordering": ["-started_at"],
             },
         ),
     ]

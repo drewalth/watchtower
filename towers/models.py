@@ -24,6 +24,7 @@ output). Phase 5 adds ``IgnitionPrediction`` (ML probability per tower-day).
 ``IngestionRun`` is the shared state between the scheduler sidecar and the
 frontend status endpoint.
 """
+
 from __future__ import annotations
 
 from typing import Optional
@@ -91,9 +92,7 @@ class WatchtowerSite(models.Model):
     )
     # Terrain line-of-sight polygon (Phase 3). Populated by compute_viewsheds;
     # when present it supersedes the naive radius circle for coverage + queries.
-    viewshed = models.MultiPolygonField(
-        srid=4326, null=True, blank=True, spatial_index=True
-    )
+    viewshed = models.MultiPolygonField(srid=4326, null=True, blank=True, spatial_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     def __str__(self) -> str:
@@ -163,9 +162,7 @@ class FireDetection(models.Model):
     """A single satellite fire detection from NASA FIRMS (VIIRS)."""
 
     location = models.PointField(srid=4326, spatial_index=True)
-    acquired_at = models.DateTimeField(
-        db_index=True, help_text="UTC time of the satellite pass."
-    )
+    acquired_at = models.DateTimeField(db_index=True, help_text="UTC time of the satellite pass.")
     source = models.CharField(max_length=50, help_text="e.g. VIIRS_NOAA20_NRT")
     frp = models.FloatField(null=True, blank=True, help_text="Fire radiative power (MW).")
     confidence = models.CharField(max_length=20, help_text="FIRMS confidence, stored raw.")
@@ -185,9 +182,7 @@ class WeatherObservation(models.Model):
     re-ingesting is idempotent — same pattern as FireDetection.
     """
 
-    tower = models.ForeignKey(
-        WatchtowerSite, on_delete=models.CASCADE, related_name="weather"
-    )
+    tower = models.ForeignKey(WatchtowerSite, on_delete=models.CASCADE, related_name="weather")
     date = models.DateField(help_text="Local calendar day of the observation.")
     temp_c = models.FloatField(help_text="Daily max temperature (°C), noon proxy.")
     rh_pct = models.FloatField(help_text="Daily min relative humidity (%).")
@@ -256,9 +251,7 @@ class IngestionRun(models.Model):
 
     started_at = models.DateTimeField(auto_now_add=True)
     finished_at = models.DateTimeField(null=True, blank=True)
-    status = models.CharField(
-        max_length=16, choices=Status.choices, default=Status.RUNNING
-    )
+    status = models.CharField(max_length=16, choices=Status.choices, default=Status.RUNNING)
     detail = models.TextField(
         blank=True, default="", help_text="Per-step ok/failed summary for debugging."
     )
@@ -280,7 +273,9 @@ class IngestionRun(models.Model):
         ordering = ["-started_at"]
 
     def __str__(self):
-        return f"IngestionRun {self.pk} ({self.kind}/{self.status}) @ {self.started_at:%Y-%m-%d %H:%M}"
+        return (
+            f"IngestionRun {self.pk} ({self.kind}/{self.status}) @ {self.started_at:%Y-%m-%d %H:%M}"
+        )
 
 
 class IgnitionPrediction(models.Model):
@@ -292,9 +287,7 @@ class IgnitionPrediction(models.Model):
     least one FIRMS detection inside this tower's coverage within ``horizon_days``?
     """
 
-    tower = models.ForeignKey(
-        WatchtowerSite, on_delete=models.CASCADE, related_name="predictions"
-    )
+    tower = models.ForeignKey(WatchtowerSite, on_delete=models.CASCADE, related_name="predictions")
     date = models.DateField(help_text="Day the prediction was made for (its 'as of').")
     probability = models.FloatField(help_text="Calibrated P(ignition) in [0, 1].")
     horizon_days = models.IntegerField(

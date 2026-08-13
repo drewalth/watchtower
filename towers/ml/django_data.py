@@ -7,6 +7,7 @@ in-coverage fire calendar from the existing spatial query, and hands the result
 to ``dataset.assemble`` — so training labels use the *same* coverage definition
 as the rest of the app.
 """
+
 from dataclasses import dataclass
 from datetime import date
 
@@ -59,8 +60,13 @@ def tower_days(tower: WatchtowerSite) -> list[TowerDay]:
                 wind_kph=obs.wind_kph,
                 precip_24h_mm=obs.precip_24h_mm,
                 snow_depth_cm=obs.snow_depth_cm,
-                ffmc=a.ffmc, dmc=a.dmc, dc=a.dc, isi=a.isi, bui=a.bui,
-                fwi=a.fwi, risk_score=a.risk_score,
+                ffmc=a.ffmc,
+                dmc=a.dmc,
+                dc=a.dc,
+                isi=a.isi,
+                bui=a.bui,
+                fwi=a.fwi,
+                risk_score=a.risk_score,
             )
         )
     return days

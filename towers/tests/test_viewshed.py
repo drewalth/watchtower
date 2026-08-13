@@ -40,15 +40,14 @@ def test_fires_in_range_uses_viewshed_when_present():
     )
     # A small visible patch offset from the tower (not the full radius circle).
     patch = Polygon(
-        ((-120.05, 38.05), (-120.03, 38.05),
-         (-120.03, 38.07), (-120.05, 38.07), (-120.05, 38.05)),
+        ((-120.05, 38.05), (-120.03, 38.05), (-120.03, 38.07), (-120.05, 38.07), (-120.05, 38.05)),
         srid=4326,
     )
     tower.viewshed = MultiPolygon(patch, srid=4326)
     tower.save(update_fields=["viewshed"])
 
-    visible = _fire("visible", -120.04, 38.06)     # inside the viewshed patch
-    blocked = _fire("blocked", -120.0, 38.0)       # in the circle, behind terrain
+    visible = _fire("visible", -120.04, 38.06)  # inside the viewshed patch
+    blocked = _fire("blocked", -120.0, 38.0)  # in the circle, behind terrain
 
     result = tower.fires_in_range()
 

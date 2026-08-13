@@ -1,4 +1,5 @@
 """Tests for the ingestion_status endpoint and run_ingest_cycle/compute_viewsheds commands."""
+
 from unittest.mock import patch
 
 import pytest
@@ -13,6 +14,7 @@ from towers.models import IngestionRun, WatchtowerSite
 # Helpers
 # ---------------------------------------------------------------------------
 
+
 def _make_tower(name="T1", viewshed=False):
     """Create a WatchtowerSite, optionally with a dummy viewshed polygon."""
     tower = WatchtowerSite.objects.create(
@@ -22,8 +24,13 @@ def _make_tower(name="T1", viewshed=False):
     )
     if viewshed:
         patch_poly = Polygon(
-            ((-120.05, 38.05), (-120.03, 38.05),
-             (-120.03, 38.07), (-120.05, 38.07), (-120.05, 38.05)),
+            (
+                (-120.05, 38.05),
+                (-120.03, 38.05),
+                (-120.03, 38.07),
+                (-120.05, 38.07),
+                (-120.05, 38.05),
+            ),
             srid=4326,
         )
         tower.viewshed = MultiPolygon(patch_poly, srid=4326)
@@ -50,6 +57,7 @@ def _status(client):
 # ---------------------------------------------------------------------------
 # Back-compat: the "run" key still exists
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_ingestion_status_null_before_any_run(client):
@@ -79,6 +87,7 @@ def test_ingestion_status_returns_latest_ingest_cycle_run(client):
 # No runs at all: all stages pending
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_no_runs_all_stages_pending(client):
     _make_tower("T1")  # exists but no viewshed
@@ -107,12 +116,15 @@ def test_no_towers_viewsheds_pending(client):
 # Mid-cycle: steps reflect in-progress state
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_mid_cycle_steps_surface_in_stages(client):
-    _make_ingest_run(steps={
-        "ingest_fires": "completed",
-        "ingest_weather": "running",
-    })
+    _make_ingest_run(
+        steps={
+            "ingest_fires": "completed",
+            "ingest_weather": "running",
+        }
+    )
     stages = {s["key"]: s for s in _status(client)["stages"]}
 
     assert stages["fires"]["status"] == "completed"
@@ -125,6 +137,7 @@ def test_mid_cycle_steps_surface_in_stages(client):
 # ---------------------------------------------------------------------------
 # Viewshed done/total counts
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_viewshed_done_and_total_counts(client):
@@ -162,6 +175,7 @@ def test_viewshed_status_from_run_when_run_exists(client):
 # ---------------------------------------------------------------------------
 # all_done flag
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_all_done_false_without_ingest_run(client):
@@ -211,6 +225,7 @@ def test_all_done_false_when_viewsheds_not_complete(client):
 # run_ingest_cycle command: structured steps
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_run_ingest_cycle_sets_kind_and_steps():
     """run_ingest_cycle creates an ingest_cycle run with all four step keys."""
@@ -220,7 +235,10 @@ def test_run_ingest_cycle_sets_kind_and_steps():
     run = IngestionRun.objects.filter(kind=IngestionRun.Kind.INGEST_CYCLE).first()
     assert run is not None
     assert set(run.steps.keys()) == {
-        "ingest_fires", "ingest_weather", "compute_fire_risk", "predict_ignition"
+        "ingest_fires",
+        "ingest_weather",
+        "compute_fire_risk",
+        "predict_ignition",
     }
     # All steps should have completed (mocked, no exceptions raised)
     assert all(v == "completed" for v in run.steps.values())
@@ -230,11 +248,14 @@ def test_run_ingest_cycle_sets_kind_and_steps():
 @pytest.mark.django_db
 def test_run_ingest_cycle_marks_failed_step():
     """A step that raises marks that step failed; cycle still completes."""
+
     def _raise_on_weather(cmd, **kwargs):
         if cmd == "ingest_weather":
             raise RuntimeError("network error")
 
-    with patch("towers.management.commands.run_ingest_cycle.call_command", side_effect=_raise_on_weather):
+    with patch(
+        "towers.management.commands.run_ingest_cycle.call_command", side_effect=_raise_on_weather
+    ):
         call_command("run_ingest_cycle")
 
     run = IngestionRun.objects.filter(kind=IngestionRun.Kind.INGEST_CYCLE).first()
@@ -249,6 +270,7 @@ def test_run_ingest_cycle_marks_failed_step():
 # ---------------------------------------------------------------------------
 # compute_viewsheds --track command
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_compute_viewsheds_track_creates_viewshed_run():

@@ -5,54 +5,105 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0004_watchtowersite_viewshed'),
+        ("towers", "0004_watchtowersite_viewshed"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='watchtowersite',
-            name='fuel_type',
-            field=models.CharField(choices=[('sparse', 'Sparse / rock'), ('grass', 'Grass'), ('mixed', 'Mixed forest'), ('shrub', 'Shrub / chaparral'), ('conifer', 'Conifer / timber')], default='mixed', help_text='Dominant fuel; scales the fire-weather risk for this tower.', max_length=20),
+            model_name="watchtowersite",
+            name="fuel_type",
+            field=models.CharField(
+                choices=[
+                    ("sparse", "Sparse / rock"),
+                    ("grass", "Grass"),
+                    ("mixed", "Mixed forest"),
+                    ("shrub", "Shrub / chaparral"),
+                    ("conifer", "Conifer / timber"),
+                ],
+                default="mixed",
+                help_text="Dominant fuel; scales the fire-weather risk for this tower.",
+                max_length=20,
+            ),
         ),
         migrations.CreateModel(
-            name='WeatherObservation',
+            name="WeatherObservation",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField(help_text='Local calendar day of the observation.')),
-                ('temp_c', models.FloatField(help_text='Daily max temperature (°C), noon proxy.')),
-                ('rh_pct', models.FloatField(help_text='Daily min relative humidity (%).')),
-                ('wind_kph', models.FloatField(help_text='Daily max wind speed (km/h).')),
-                ('precip_24h_mm', models.FloatField(help_text='24h precipitation total (mm).')),
-                ('snow_depth_cm', models.FloatField(help_text='Snow on the ground (cm).')),
-                ('source', models.CharField(default='open-meteo', max_length=50)),
-                ('external_uid', models.CharField(max_length=255, unique=True)),
-                ('tower', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='weather', to='towers.watchtowersite')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("date", models.DateField(help_text="Local calendar day of the observation.")),
+                ("temp_c", models.FloatField(help_text="Daily max temperature (°C), noon proxy.")),
+                ("rh_pct", models.FloatField(help_text="Daily min relative humidity (%).")),
+                ("wind_kph", models.FloatField(help_text="Daily max wind speed (km/h).")),
+                ("precip_24h_mm", models.FloatField(help_text="24h precipitation total (mm).")),
+                ("snow_depth_cm", models.FloatField(help_text="Snow on the ground (cm).")),
+                ("source", models.CharField(default="open-meteo", max_length=50)),
+                ("external_uid", models.CharField(max_length=255, unique=True)),
+                (
+                    "tower",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="weather",
+                        to="towers.watchtowersite",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['tower', 'date'],
+                "ordering": ["tower", "date"],
             },
         ),
         migrations.CreateModel(
-            name='FireRiskAssessment',
+            name="FireRiskAssessment",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField()),
-                ('ffmc', models.FloatField(help_text='Fine Fuel Moisture Code.')),
-                ('dmc', models.FloatField(help_text='Duff Moisture Code.')),
-                ('dc', models.FloatField(help_text='Drought Code.')),
-                ('isi', models.FloatField(help_text='Initial Spread Index.')),
-                ('bui', models.FloatField(help_text='Buildup Index.')),
-                ('fwi', models.FloatField(help_text='Fire Weather Index.')),
-                ('risk_score', models.FloatField(help_text='FWI scaled to 0–100 for display.')),
-                ('risk_level', models.CharField(choices=[('low', 'Low'), ('moderate', 'Moderate'), ('high', 'High'), ('very_high', 'Very high'), ('extreme', 'Extreme')], max_length=20)),
-                ('snow_covered', models.BooleanField(default=False, help_text='Ground snow-covered → fire risk suppressed.')),
-                ('tower', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='risk_assessments', to='towers.watchtowersite')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("date", models.DateField()),
+                ("ffmc", models.FloatField(help_text="Fine Fuel Moisture Code.")),
+                ("dmc", models.FloatField(help_text="Duff Moisture Code.")),
+                ("dc", models.FloatField(help_text="Drought Code.")),
+                ("isi", models.FloatField(help_text="Initial Spread Index.")),
+                ("bui", models.FloatField(help_text="Buildup Index.")),
+                ("fwi", models.FloatField(help_text="Fire Weather Index.")),
+                ("risk_score", models.FloatField(help_text="FWI scaled to 0–100 for display.")),
+                (
+                    "risk_level",
+                    models.CharField(
+                        choices=[
+                            ("low", "Low"),
+                            ("moderate", "Moderate"),
+                            ("high", "High"),
+                            ("very_high", "Very high"),
+                            ("extreme", "Extreme"),
+                        ],
+                        max_length=20,
+                    ),
+                ),
+                (
+                    "snow_covered",
+                    models.BooleanField(
+                        default=False, help_text="Ground snow-covered → fire risk suppressed."
+                    ),
+                ),
+                (
+                    "tower",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="risk_assessments",
+                        to="towers.watchtowersite",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['tower', 'date'],
-                'unique_together': {('tower', 'date')},
+                "ordering": ["tower", "date"],
+                "unique_together": {("tower", "date")},
             },
         ),
     ]

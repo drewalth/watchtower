@@ -97,9 +97,7 @@ def test_ingest_fans_out_across_sources(settings, seeded_tower):
 
     assert get.call_count == 3
     assert FireDetection.objects.count() == 3
-    assert set(FireDetection.objects.values_list("source", flat=True)) == set(
-        THREE_SOURCES
-    )
+    assert set(FireDetection.objects.values_list("source", flat=True)) == set(THREE_SOURCES)
 
 
 @pytest.mark.django_db
@@ -210,6 +208,4 @@ def test_source_fails_only_when_all_clusters_fail(settings, two_distant_towers):
 
     # Only source B's two detections persisted.
     assert FireDetection.objects.count() == 2
-    assert set(FireDetection.objects.values_list("source", flat=True)) == {
-        "VIIRS_SNPP_NRT"
-    }
+    assert set(FireDetection.objects.values_list("source", flat=True)) == {"VIIRS_SNPP_NRT"}

@@ -5,15 +5,16 @@ from django.db import migrations
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0003_firedetection_and_more'),
+        ("towers", "0003_firedetection_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='watchtowersite',
-            name='viewshed',
-            field=django.contrib.gis.db.models.fields.MultiPolygonField(blank=True, null=True, srid=4326),
+            model_name="watchtowersite",
+            name="viewshed",
+            field=django.contrib.gis.db.models.fields.MultiPolygonField(
+                blank=True, null=True, srid=4326
+            ),
         ),
     ]

@@ -1,4 +1,5 @@
 """Pure model wrapper: train → predict → (de)serialize (no DB / no network)."""
+
 from towers.ml.dataset import CATEGORICAL_FEATURES, NUMERIC_FEATURES
 from towers.ml.model import IgnitionModel, build_baseline
 
@@ -24,7 +25,11 @@ def _separable_dataset():
 def test_model_separates_a_trivially_separable_set():
     records, labels = _separable_dataset()
     model = IgnitionModel.train(
-        records, labels, horizon_days=3, model_version="test", kind="logreg",
+        records,
+        labels,
+        horizon_days=3,
+        model_version="test",
+        kind="logreg",
         calibrate=False,
     )
     hot_p = model.predict_one(_record(fwi=58.0))
@@ -36,7 +41,11 @@ def test_model_separates_a_trivially_separable_set():
 def test_train_predict_serialize_roundtrips_identically(tmp_path):
     records, labels = _separable_dataset()
     model = IgnitionModel.train(
-        records, labels, horizon_days=3, model_version="v1", kind="hgb",
+        records,
+        labels,
+        horizon_days=3,
+        model_version="v1",
+        kind="hgb",
         calibrate=False,
     )
     before = model.predict_proba(records)

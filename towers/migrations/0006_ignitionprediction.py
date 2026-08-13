@@ -5,26 +5,51 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0005_watchtowersite_fuel_type_weatherobservation_and_more'),
+        ("towers", "0005_watchtowersite_fuel_type_weatherobservation_and_more"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='IgnitionPrediction',
+            name="IgnitionPrediction",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('date', models.DateField(help_text="Day the prediction was made for (its 'as of').")),
-                ('probability', models.FloatField(help_text='Calibrated P(ignition) in [0, 1].')),
-                ('horizon_days', models.IntegerField(help_text='Forecast window: a fire within (date, date + horizon_days].')),
-                ('model_version', models.CharField(help_text='Identifies the trained artifact behind this value.', max_length=64)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('tower', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='predictions', to='towers.watchtowersite')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                (
+                    "date",
+                    models.DateField(help_text="Day the prediction was made for (its 'as of')."),
+                ),
+                ("probability", models.FloatField(help_text="Calibrated P(ignition) in [0, 1].")),
+                (
+                    "horizon_days",
+                    models.IntegerField(
+                        help_text="Forecast window: a fire within (date, date + horizon_days]."
+                    ),
+                ),
+                (
+                    "model_version",
+                    models.CharField(
+                        help_text="Identifies the trained artifact behind this value.",
+                        max_length=64,
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                (
+                    "tower",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="predictions",
+                        to="towers.watchtowersite",
+                    ),
+                ),
             ],
             options={
-                'ordering': ['tower', '-date'],
-                'unique_together': {('tower', 'date', 'model_version')},
+                "ordering": ["tower", "-date"],
+                "unique_together": {("tower", "date", "model_version")},
             },
         ),
     ]

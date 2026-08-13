@@ -16,6 +16,7 @@ The surface splits into three groups: the map feeds (``towers``/``fires``
 GeoJSON), the dashboard aggregates (``fires``/``risk`` time series + stats), and
 the ingest ``status`` endpoint the scheduler/UI poll.
 """
+
 from __future__ import annotations
 
 import json
@@ -120,9 +121,7 @@ def _fire_count_map(start: date | None = None, end: date | None = None) -> dict[
     radius_towers = WatchtowerSite.objects.filter(viewshed__isnull=True)
     for radius in radius_towers.values_list("coverage_radius_km", flat=True).distinct():
         within_count = (
-            base.filter(
-                location__distance_lte=(OuterRef("location"), D(km=radius), "spheroid")
-            )
+            base.filter(location__distance_lte=(OuterRef("location"), D(km=radius), "spheroid"))
             .order_by()
             .values(g=Value(1))
             .annotate(c=Count("pk"))
@@ -290,12 +289,9 @@ def fires_timeseries(request: HttpRequest) -> JsonResponse:
         .order_by("day")
     )
     series = [
-        {"date": r["day"].isoformat(), "source": r["source"], "count": r["count"]}
-        for r in rows
+        {"date": r["day"].isoformat(), "source": r["source"], "count": r["count"]} for r in rows
     ]
-    bounds = FireDetection.objects.aggregate(
-        min_at=Min("acquired_at"), max_at=Max("acquired_at")
-    )
+    bounds = FireDetection.objects.aggregate(min_at=Min("acquired_at"), max_at=Max("acquired_at"))
     return JsonResponse(
         {
             "series": series,
@@ -355,9 +351,7 @@ def risk_timeseries(request: HttpRequest) -> JsonResponse:
     )
     prob_by_date = {
         r["date"]: r["mean_prob"]
-        for r in IgnitionPrediction.objects.values("date").annotate(
-            mean_prob=Avg("probability")
-        )
+        for r in IgnitionPrediction.objects.values("date").annotate(mean_prob=Avg("probability"))
     }
     series = [
         {
@@ -424,12 +418,8 @@ def ingestion_status(request: HttpRequest) -> JsonResponse:
     IngestionRun.Status values (lowercase).  The viewsheds stage also carries
     ``done`` and ``total`` int counts.
     """
-    ingest_run = (
-        IngestionRun.objects.filter(kind=IngestionRun.Kind.INGEST_CYCLE).first()
-    )
-    viewshed_run = (
-        IngestionRun.objects.filter(kind=IngestionRun.Kind.VIEWSHEDS).first()
-    )
+    ingest_run = IngestionRun.objects.filter(kind=IngestionRun.Kind.INGEST_CYCLE).first()
+    viewshed_run = IngestionRun.objects.filter(kind=IngestionRun.Kind.VIEWSHEDS).first()
 
     run_payload = None
     if ingest_run is not None:
@@ -437,9 +427,7 @@ def ingestion_status(request: HttpRequest) -> JsonResponse:
             "id": ingest_run.id,
             "status": ingest_run.status,
             "started_at": ingest_run.started_at.isoformat(),
-            "finished_at": (
-                ingest_run.finished_at.isoformat() if ingest_run.finished_at else None
-            ),
+            "finished_at": (ingest_run.finished_at.isoformat() if ingest_run.finished_at else None),
         }
 
     stages = _build_stages(ingest_run, viewshed_run)
@@ -457,9 +445,7 @@ _INGEST_STAGE_MAP = [
 ]
 
 
-def _build_stages(
-    ingest_run: IngestionRun | None, viewshed_run: IngestionRun | None
-) -> list[dict]:
+def _build_stages(ingest_run: IngestionRun | None, viewshed_run: IngestionRun | None) -> list[dict]:
     """Assemble the stages list from the latest ingest and viewshed runs."""
     steps = ingest_run.steps if ingest_run is not None else {}
 
@@ -500,16 +486,10 @@ def _all_done(ingest_run: IngestionRun | None, stages: list[dict]) -> bool:
     if ingest_run is None:
         return False
 
-    ingest_stages_done = all(
-        s["status"] == "completed"
-        for s in stages
-        if s["key"] != "viewsheds"
-    )
+    ingest_stages_done = all(s["status"] == "completed" for s in stages if s["key"] != "viewsheds")
     viewshed_stage = next(s for s in stages if s["key"] == "viewsheds")
 
-    ingest_complete = (
-        ingest_run.status == IngestionRun.Status.COMPLETED or ingest_stages_done
-    )
+    ingest_complete = ingest_run.status == IngestionRun.Status.COMPLETED or ingest_stages_done
     return ingest_complete and viewshed_stage["status"] == "completed"
 
 

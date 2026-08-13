@@ -4,15 +4,14 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0006_ignitionprediction'),
+        ("towers", "0006_ignitionprediction"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='firedetection',
-            name='acquired_at',
-            field=models.DateTimeField(db_index=True, help_text='UTC time of the satellite pass.'),
+            model_name="firedetection",
+            name="acquired_at",
+            field=models.DateTimeField(db_index=True, help_text="UTC time of the satellite pass."),
         ),
     ]

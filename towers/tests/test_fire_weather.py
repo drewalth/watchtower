@@ -11,6 +11,7 @@ System", reproduced across independent implementations (cffdrs, pyfwi):
 
 These are pure (no DB / no network).
 """
+
 from datetime import date
 
 import pytest

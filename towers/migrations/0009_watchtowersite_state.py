@@ -4,15 +4,18 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0008_ingestionrun'),
+        ("towers", "0008_ingestionrun"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='watchtowersite',
-            name='state',
-            field=models.CharField(default='', help_text='USPS two-letter state code (e.g. CA, CO, WA, OR).', max_length=2),
+            model_name="watchtowersite",
+            name="state",
+            field=models.CharField(
+                default="",
+                help_text="USPS two-letter state code (e.g. CA, CO, WA, OR).",
+                max_length=2,
+            ),
         ),
     ]

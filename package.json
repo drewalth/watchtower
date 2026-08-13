@@ -12,7 +12,17 @@
     "format:write": "prettier --write \"**/*.{ts,tsx,json,md}\"",
     "format:check": "prettier --check \"**/*.{ts,tsx,json,md}\""
   },
-  "keywords": ["geodjango","postgis","wildfire","maplibre","nasa-firms","viewshed","fwi","machine-learning","gis"],
+  "keywords": [
+    "geodjango",
+    "postgis",
+    "wildfire",
+    "maplibre",
+    "nasa-firms",
+    "viewshed",
+    "fwi",
+    "machine-learning",
+    "gis"
+  ],
   "author": "Andrew Althage",
   "license": "MIT",
   "devDependencies": {

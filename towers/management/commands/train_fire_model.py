@@ -7,6 +7,7 @@ baseline, and reports the comparison that *is* the result: does the model beat t
 Phase 4 index? Writes a joblib artifact + a metrics JSON for predict_ignition and
 for the spec's verification.
 """
+
 import json
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,7 +43,9 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--horizon", type=int, default=DEFAULT_HORIZON_DAYS,
+            "--horizon",
+            type=int,
+            default=DEFAULT_HORIZON_DAYS,
             help=f"Prediction window in days. Default {DEFAULT_HORIZON_DAYS}.",
         )
 
@@ -50,9 +53,7 @@ class Command(BaseCommand):
         horizon = options["horizon"]
         towers = list(WatchtowerSite.objects.all())
         if not towers:
-            raise CommandError(
-                "No towers — run 'python manage.py seed_towers' first."
-            )
+            raise CommandError("No towers — run 'python manage.py seed_towers' first.")
 
         rows = assemble_all(towers, horizon_days=horizon)
         if not rows.records:
@@ -137,7 +138,7 @@ class Command(BaseCommand):
             )
 
         # Rank by PR-AUC (the rare-event metric); None sorts last.
-        best = max(candidates, key=lambda c: (c["metrics"]["pr_auc"] or -1.0))
+        best = max(candidates, key=lambda c: c["metrics"]["pr_auc"] or -1.0)
         return {
             "model": best["model"],
             "metrics": best["metrics"],
@@ -151,18 +152,26 @@ class Command(BaseCommand):
         """Fit one model; fall back to uncalibrated if calibration CV can't run."""
         try:
             return IgnitionModel.train(
-                train["records"], train["labels"], horizon_days=horizon,
-                model_version=version, kind=kind, calibrate=True,
+                train["records"],
+                train["labels"],
+                horizon_days=horizon,
+                model_version=version,
+                kind=kind,
+                calibrate=True,
             )
         except ValueError:
             # CalibratedClassifierCV needs ≥cv samples of each class; on thin data
             # it can't fold. Uncalibrated still produces ranked probabilities.
-            self.stderr.write(self.style.WARNING(
-                f"  {kind}: calibration skipped (too few samples per fold)."
-            ))
+            self.stderr.write(
+                self.style.WARNING(f"  {kind}: calibration skipped (too few samples per fold).")
+            )
             return IgnitionModel.train(
-                train["records"], train["labels"], horizon_days=horizon,
-                model_version=f"{version}-uncal", kind=kind, calibrate=False,
+                train["records"],
+                train["labels"],
+                horizon_days=horizon,
+                model_version=f"{version}-uncal",
+                kind=kind,
+                calibrate=False,
             )
 
     @staticmethod
@@ -178,21 +187,25 @@ class Command(BaseCommand):
 
     def _report(self, best, baseline_ap):
         model_ap = best["metrics"]["pr_auc"]
-        self.stdout.write(self.style.SUCCESS(
-            f"Saved {best['model'].model_version} → {ARTIFACT_PATH}"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(f"Saved {best['model'].model_version} → {ARTIFACT_PATH}")
+        )
         if model_ap is None or baseline_ap is None:
-            self.stdout.write(self.style.WARNING(
-                "Test set is single-class — PR-AUC undefined. Accumulate more "
-                "history (more fire-days in the held-out period) to evaluate."
-            ))
+            self.stdout.write(
+                self.style.WARNING(
+                    "Test set is single-class — PR-AUC undefined. Accumulate more "
+                    "history (more fire-days in the held-out period) to evaluate."
+                )
+            )
             return
         verdict = "beats" if model_ap > baseline_ap else "does NOT beat"
         style = self.style.SUCCESS if model_ap > baseline_ap else self.style.WARNING
-        self.stdout.write(style(
-            f"Headline: model PR-AUC {model_ap:.3f} {verdict} "
-            f"FWI-only baseline {baseline_ap:.3f}."
-        ))
+        self.stdout.write(
+            style(
+                f"Headline: model PR-AUC {model_ap:.3f} {verdict} "
+                f"FWI-only baseline {baseline_ap:.3f}."
+            )
+        )
 
 
 def _fmt(value):

@@ -8,6 +8,7 @@ recorded and the rest still run, mirroring the old ``|| true`` loop), so one bad
 step never aborts the cycle. The frontend polls the latest IngestionRun to show
 a progress toast.
 """
+
 from django.core.management import call_command
 from django.core.management.base import BaseCommand
 from django.utils import timezone
@@ -51,14 +52,10 @@ class Command(BaseCommand):
 
         # Failed only if *every* step raised; otherwise the refresh did something.
         run.status = (
-            IngestionRun.Status.FAILED
-            if failures == len(STEPS)
-            else IngestionRun.Status.COMPLETED
+            IngestionRun.Status.FAILED if failures == len(STEPS) else IngestionRun.Status.COMPLETED
         )
         run.finished_at = timezone.now()
         run.detail = "; ".join(results)
         run.save(update_fields=["status", "finished_at", "detail"])
 
-        self.stdout.write(self.style.SUCCESS(
-            f"Ingest cycle {run.status} — {run.detail}"
-        ))
+        self.stdout.write(self.style.SUCCESS(f"Ingest cycle {run.status} — {run.detail}"))

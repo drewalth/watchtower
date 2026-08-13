@@ -1,4 +1,5 @@
 """backfill_weather: fetch the Open-Meteo archive over a range, upsert per tower."""
+
 from unittest import mock
 
 import pytest

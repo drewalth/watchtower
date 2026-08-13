@@ -5,28 +5,45 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-
     dependencies = [
-        ('towers', '0002_initial'),
+        ("towers", "0002_initial"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='FireDetection',
+            name="FireDetection",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('location', django.contrib.gis.db.models.fields.PointField(srid=4326)),
-                ('acquired_at', models.DateTimeField(help_text='UTC time of the satellite pass.')),
-                ('source', models.CharField(help_text='e.g. VIIRS_NOAA20_NRT', max_length=50)),
-                ('frp', models.FloatField(blank=True, help_text='Fire radiative power (MW).', null=True)),
-                ('confidence', models.CharField(help_text='FIRMS confidence, stored raw.', max_length=20)),
-                ('brightness', models.FloatField(blank=True, help_text='bright_ti4 (Kelvin).', null=True)),
-                ('external_uid', models.CharField(max_length=255, unique=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True, primary_key=True, serialize=False, verbose_name="ID"
+                    ),
+                ),
+                ("location", django.contrib.gis.db.models.fields.PointField(srid=4326)),
+                ("acquired_at", models.DateTimeField(help_text="UTC time of the satellite pass.")),
+                ("source", models.CharField(help_text="e.g. VIIRS_NOAA20_NRT", max_length=50)),
+                (
+                    "frp",
+                    models.FloatField(
+                        blank=True, help_text="Fire radiative power (MW).", null=True
+                    ),
+                ),
+                (
+                    "confidence",
+                    models.CharField(help_text="FIRMS confidence, stored raw.", max_length=20),
+                ),
+                (
+                    "brightness",
+                    models.FloatField(blank=True, help_text="bright_ti4 (Kelvin).", null=True),
+                ),
+                ("external_uid", models.CharField(max_length=255, unique=True)),
             ],
         ),
         migrations.AlterField(
-            model_name='watchtowersite',
-            name='coverage_radius_km',
-            field=models.FloatField(default=20.0, help_text='Naive line-of-sight radius; used for the coverage model.'),
+            model_name="watchtowersite",
+            name="coverage_radius_km",
+            field=models.FloatField(
+                default=20.0, help_text="Naive line-of-sight radius; used for the coverage model."
+            ),
         ),
     ]

@@ -6,14 +6,14 @@ This document is the deep technical companion to the [README](README.md). The de
 
 The project was built in six phases, each a vertical slice of new capability:
 
-| Phase | Added |
-|-------|-------|
-| 0 | GeoDjango + PostGIS core: `WatchtowerSite`, `FireDetection`, the spatial join, seed data |
-| 2 | NASA FIRMS VIIRS ingest; `FireDetection` ETL with idempotent dedup |
-| 3 | Terrain viewsheds from Copernicus GLO-30 DEM; coverage upgrades from circle to polygon |
-| 4 | Canadian FWI fire-weather system; `WeatherObservation`, `FireRiskAssessment` |
-| 5 | ML ignition-probability layer; `IgnitionPrediction`, leakage-safe feature/label assembly |
-| 6 | Map-first analytics dashboard: time-range control, trend charts, per-tower leaderboard |
+| Phase | Added                                                                                    |
+| ----- | ---------------------------------------------------------------------------------------- |
+| 0     | GeoDjango + PostGIS core: `WatchtowerSite`, `FireDetection`, the spatial join, seed data |
+| 2     | NASA FIRMS VIIRS ingest; `FireDetection` ETL with idempotent dedup                       |
+| 3     | Terrain viewsheds from Copernicus GLO-30 DEM; coverage upgrades from circle to polygon   |
+| 4     | Canadian FWI fire-weather system; `WeatherObservation`, `FireRiskAssessment`             |
+| 5     | ML ignition-probability layer; `IgnitionPrediction`, leakage-safe feature/label assembly |
+| 6     | Map-first analytics dashboard: time-range control, trend charts, per-tower leaderboard   |
 
 Each phase is independently testable — the FWI math has no Django imports, the ML pipeline has no DB imports, the clustering has no model imports. The layering is intentional.
 
@@ -54,7 +54,7 @@ def _metric_srid(self) -> int:
     return 32600 + zone  # 326NN = WGS84 / UTM zone NN North
 ```
 
-Using the tower's *local* UTM zone matters. Web Mercator (EPSG:3857) has a scale factor that grows with latitude; at California's latitude (~37°N) it introduces roughly 28% distance error. Per-tower UTM is accurate to better than 0.1% within a zone. Radius buffers for `coverage_area()` reproject the point to UTM, buffer in metres, then reproject back to 4326. Distance queries pass `"spheroid"` so PostGIS measures true ground metres rather than degrees.
+Using the tower's _local_ UTM zone matters. Web Mercator (EPSG:3857) has a scale factor that grows with latitude; at California's latitude (~37°N) it introduces roughly 28% distance error. Per-tower UTM is accurate to better than 0.1% within a zone. Radius buffers for `coverage_area()` reproject the point to UTM, buffer in metres, then reproject back to 4326. Distance queries pass `"spheroid"` so PostGIS measures true ground metres rather than degrees.
 
 ## The viewshed pipeline
 
@@ -132,17 +132,17 @@ Several independent failure isolation decisions prevent a single bad fetch from 
 
 All commands are in `towers/management/commands/`. All are idempotent.
 
-| Command | What it does |
-|---------|--------------|
-| `seed_towers` | Loads 27 real western-US lookouts (CA=5, CO=6, WA=8, OR=8) via `update_or_create` |
-| `ingest_fires` | Fetches FIRMS VIIRS CSV (NRT or archive via `--start/--end`); per-sensor + per-cluster isolation |
+| Command             | What it does                                                                                                       |
+| ------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `seed_towers`       | Loads 27 real western-US lookouts (CA=5, CO=6, WA=8, OR=8) via `update_or_create`                                  |
+| `ingest_fires`      | Fetches FIRMS VIIRS CSV (NRT or archive via `--start/--end`); per-sensor + per-cluster isolation                   |
 | `compute_viewsheds` | Computes DEM viewsheds; `--only-missing` skips towers with existing viewsheds; `--track` records an `IngestionRun` |
-| `ingest_weather` | Fetches Open-Meteo forecast for each tower → `WeatherObservation` |
-| `compute_fire_risk` | Walks `WeatherObservation` time series forward through FWI system → `FireRiskAssessment` |
-| `backfill_weather` | Fetches Open-Meteo archive over a date range (for training the ML model) |
-| `train_fire_model` | Assembles dataset, temporal split, fits model + baseline, writes artifact + metrics to `models/` |
-| `predict_ignition` | Loads trained artifact, writes `IgnitionPrediction` per tower; no-op until artifact exists |
-| `run_ingest_cycle` | Orchestrates the hourly cycle: fires → weather → risk → predict; records an `IngestionRun` |
+| `ingest_weather`    | Fetches Open-Meteo forecast for each tower → `WeatherObservation`                                                  |
+| `compute_fire_risk` | Walks `WeatherObservation` time series forward through FWI system → `FireRiskAssessment`                           |
+| `backfill_weather`  | Fetches Open-Meteo archive over a date range (for training the ML model)                                           |
+| `train_fire_model`  | Assembles dataset, temporal split, fits model + baseline, writes artifact + metrics to `models/`                   |
+| `predict_ignition`  | Loads trained artifact, writes `IgnitionPrediction` per tower; no-op until artifact exists                         |
+| `run_ingest_cycle`  | Orchestrates the hourly cycle: fires → weather → risk → predict; records an `IngestionRun`                         |
 
 The `scheduler` sidecar runs `compute_viewsheds --only-missing --track` once on start (idempotent across restarts), then loops `run_ingest_cycle` every hour. Each step is `|| true` so one failure never kills the loop. `train_fire_model` is not in the loop — it's a deliberate manual step.
 
@@ -152,7 +152,7 @@ The `scheduler` sidecar runs `compute_viewsheds --only-missing --track` once on 
 
 **Map layer** (`assets/components/map/MapView.tsx`) — MapLibre GL via [mapcn](https://www.mapcn.dev). Tower coverage polygons (circle or viewshed) and fire points render as separate layers. Fires render through `FireClusterLayer` — client-side point clustering keeps the map responsive over large detection windows without round-tripping for pre-clustered data. Viewshed polygons are large (~250k–1M vertices each); they are served as-is per-tower and bbox-prefiltered on the client rather than doing point-in-polygon.
 
-**Analytics dashboard** (`assets/components/analytics/`) — a collapsible overlay (`AnalyticsPanel`) with recharts KPI cards and a bottom `TimeRangeControl`. The time window is anchored to the *latest detection in the dataset* (via `lib/time.ts`), not wall-clock now, so the charts remain meaningful on a data snapshot. Preset range buttons and a brushable fires-per-day histogram both update the same window state, which drives the filtered fires fetch and all the aggregate cards in one pass.
+**Analytics dashboard** (`assets/components/analytics/`) — a collapsible overlay (`AnalyticsPanel`) with recharts KPI cards and a bottom `TimeRangeControl`. The time window is anchored to the _latest detection in the dataset_ (via `lib/time.ts`), not wall-clock now, so the charts remain meaningful on a data snapshot. Preset range buttons and a brushable fires-per-day histogram both update the same window state, which drives the filtered fires fetch and all the aggregate cards in one pass.
 
 **Data fetching** — the shared `lib/useJson.ts` hook handles all JSON/GeoJSON fetches. Chart and card primitives come from shadcn `card`/`chart` components in `components/ui/`.
 

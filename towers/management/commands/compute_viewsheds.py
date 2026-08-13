@@ -15,6 +15,7 @@ towers that already have a viewshed so existing computation is not wasted.
 ``--track`` records the run in ``IngestionRun`` so the frontend status pill can
 show viewshed progress.
 """
+
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
@@ -30,19 +31,25 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(
-            "--tower", type=int, default=None,
+            "--tower",
+            type=int,
+            default=None,
             help="Only compute for this tower id (default: all towers).",
         )
         parser.add_argument(
-            "--mast", type=float, default=10.0,
+            "--mast",
+            type=float,
+            default=10.0,
             help="Observer mast height in metres above the ground. Default 10.",
         )
         parser.add_argument(
-            "--only-missing", action="store_true",
+            "--only-missing",
+            action="store_true",
             help="Only compute towers that don't already have a stored viewshed.",
         )
         parser.add_argument(
-            "--track", action="store_true",
+            "--track",
+            action="store_true",
             help=(
                 "Record this run in an IngestionRun row (kind=viewsheds) so the "
                 "status endpoint can surface viewshed progress to the frontend."
@@ -103,7 +110,6 @@ class Command(BaseCommand):
                 # area_sq_km via an equal-area-ish check isn't needed; report counts.
                 self.stdout.write(
                     self.style.SUCCESS(
-                        f"  stored viewshed — {tower.fires_in_range().count()} "
-                        f"fire(s) now visible."
+                        f"  stored viewshed — {tower.fires_in_range().count()} fire(s) now visible."
                     )
                 )
